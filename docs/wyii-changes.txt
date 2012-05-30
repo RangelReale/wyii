@@ -1,26 +1,38 @@
-RR Yii Patch
+WYii Patch
 ------------
-- CFormatter value parsing
+- CFormatter value parsing (parseXXX)
 - CLocaleFormatter, formatting/parsing using locale
 - CNumberParser for parsing numbers
 - CFormatParseValidator uses CFormatter parsing functions to validate
 - CHtml uses CHtml::value for all functions
 - CHtml checkBox / radioBox relation field support ($htmlOptions['attributeItem']=<valueAttribute>)
-- DB type conversion to PHP type (CDbColumnSchema::valueFromDb, CDbColumnSchema::valueToDb) - currently only MySQL implemented
+- DB type conversion to PHP type (CDbColumnSchema::valueFromDb, CDbColumnSchema::valueToDb) - currently 
+only MySQL implemented
 - Automatic DB type conversion to/from PHP type
-- Moved "save" functions from CActiveRecord to CModel - the "real" saving funciont is now CModel::doSave($attributes).
-- CModel::childModels returns an array of child models, to allow for hierarchy validating / saving.
+- Moved "save" functions from CActiveRecord to CModel - the "real" saving funciont is 
+now CModel::doSave($attributes).
 - CModel::isActive, to check if the item is really active (checks for record deleted flags)
-- CModel::resolveAttribute to parse "dot" notation attributes, like "post.category.id". All CModel funcions (excepting direct property setting / getting) allows for "dot" notation.
+- CModel::resolveAttribute to parse "dot" notation attributes, like "post.category.id". 
+All CModel funcions (excepting direct property setting / getting) allows for "dot" notation.
 - CActiveRecord::markDelete, marks the record for deletion when calling "save".
-- CActiveRecord relations returns a CModelCollection instead of a plain array. CModelCollection is derived from CModel, and implements ArrayAccess, so it should be compatible with most older code. The model collection class can be customized when declaring the relation, so specialized programming can be added to the collection, allowing for advanced database programming. Also allows for array access via property name, like "author.posts.2.id". CModelCollection is automatically saved when parent model is saved (if relation is declared safe).
+- CActiveRecord relations returns a CModelCollection instead of a plain array. 
+CModelCollection is derived from CModel, and implements ArrayAccess, so it should be 
+compatible with most older code. The model collection class can be customized when declaring 
+the relation, so specialized programming can be added to the collection, allowing for 
+advanced database programming. Also allows for array access via property name, like "author.posts.2.id". 
+CModelCollection is automatically saved when parent model is saved (if relation is declared safe).
 - CFileHelper::getExtension returns the file extension
 - CActiveDataProvider::scope uses a scope when querying the object
 
 
 Possible compatibility problems
 -------------------------------
-- CActiveRecord relations return CModelCollection instead of PHP array. If code assumes the result is an array (like calling is_array), code my not work. CModelCollection implements array semantics, so it should work for most code.
-- When reading data from database, the field value now is always in PHP format, and when saving the field is expected to be in PHP format.
-- When overriding a model's "save" function, the overridden function should be "doSave". Overriding "save" may break child models saving.
-- The model now can now be on the "deleted" stated, as return by isDeletedRecord. If the record is new and deleted, the "save" method does nothing.
+- CActiveRecord relations return CModelCollection instead of PHP array. If code assumes the result is 
+an array (like calling is_array), code my not work. CModelCollection implements array semantics, so 
+it should work for most code.
+- When reading data from database, the field value now is always in PHP format, and when saving the 
+field is expected to be in PHP format.
+- When overriding a model's "save" function, the overridden function should be "doSave". 
+Overriding "save" may break child models saving.
+- The model now can now be on the "deleted" stated, as return by isDeletedRecord. If the record is 
+new and deleted, the "save" method does nothing.

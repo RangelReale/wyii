@@ -261,19 +261,10 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 *
 	 * This function is the real saving method, if assumes the data was already validated.
 	 *
-	 * @param array list of attributes that need to be saved. Defaults to null,
-	 * meaning all attributes that are loaded from DB will be saved.
 	 * @return boolean whether the saving succeeds
 	 */
 	protected function doExecute()
 	{
-/*
-		foreach ($this->getChildModels(false) as $attribute => $model)
-		{
-			if (!$model->save(false, (isset($attributes[$attribute])?$attributes[$attribute]:null)))
-				return false;
-		}
- */
 		return true;
 	}
 
