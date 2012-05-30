@@ -1152,7 +1152,7 @@ class CDbCommand extends CComponent
 	 * @return integer number of rows affected by the execution.
 	 * @since 1.1.6
 	 */
-	public function insert($table, $columns)
+	public function insert($table, $columns, $insertCommand = 'INSERT')
 	{
 		$params=array();
 		$names=array();
@@ -1172,7 +1172,7 @@ class CDbCommand extends CComponent
 				$params[':' . $name] = $value;
 			}
 		}
-		$sql='INSERT INTO ' . $this->_connection->quoteTableName($table)
+		$sql=$insertCommand . ' INTO ' . $this->_connection->quoteTableName($table)
 			. ' (' . implode(', ',$names) . ') VALUES ('
 			. implode(', ', $placeholders) . ')';
 		return $this->setText($sql)->execute($params);
@@ -1221,9 +1221,9 @@ class CDbCommand extends CComponent
 	 * @return integer number of rows affected by the execution.
 	 * @since 1.1.6
 	 */
-	public function delete($table, $conditions='', $params=array())
+	public function delete($table, $conditions='', $params=array(), $deleteCommand = 'DELETE')
 	{
-		$sql='DELETE FROM ' . $this->_connection->quoteTableName($table);
+		$sql=$deleteCommand.' FROM ' . $this->_connection->quoteTableName($table);
 		if(($where=$this->processConditions($conditions))!='')
 			$sql.=' WHERE '.$where;
 		return $this->setText($sql)->execute($params);

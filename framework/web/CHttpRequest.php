@@ -189,6 +189,38 @@ class CHttpRequest extends CApplicationComponent
 	}
 
 	/**
+	 * Returns the total POST length in bytes, including any uploaded files.
+	 * @return integer total POST length
+	 */
+	public function getPostLength()
+	{
+        // TODO: count $_POST length
+        $len = 0;
+		
+        foreach ($_FILES as $fname => $fl)
+        {
+            if (isset($fl['name']))
+            {
+                if (!is_array($fl['name']))
+                {
+                    if ($fl['error'] == UPLOAD_ERR_OK && isset($fl['size']))
+                        $len += $fl['size'];
+                }
+                else
+                {
+                    foreach ($fl['name'] as $fnid => $fnfl)
+                    {
+                        if ($fl['error'][$fnid] == UPLOAD_ERR_OK && isset($fl['size'][$fnid]))
+                            $len += $fl['size'][$fnid];
+                    }
+                }
+            }
+        }
+        
+        return $len;
+	}
+    
+	/**
 	 * Returns the named DELETE parameter value.
 	 * If the DELETE parameter does not exist or if the current request is not a DELETE request,
 	 * the second parameter to this method will be returned.
@@ -989,7 +1021,7 @@ class CHttpRequest extends CApplicationComponent
  * <pre>
  * $cookies[$name]=new CHttpCookie($name,$value); // sends a cookie
  * $value=$cookies[$name]->value; // reads a cookie value
- * unset($cookies[$name]); // removes a cookie
+ * unset($cookies[$name]);  // removes a cookie
  * </pre>
  * Additionally (since Yii 1.1.11) a cookie can be added as an object, 
  * without setting the cookie name twice:

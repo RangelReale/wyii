@@ -39,6 +39,17 @@ class CMysqlSchema extends CDbSchema
     );
 
 	/**
+	 * Constructor.
+	 * @param CDbConnection $conn database connection.
+	 */
+	public function __construct($conn)
+	{
+        parent::__construct($conn);
+        if ($conn->useTimezone)
+            $conn->createCommand("set time_zone='".CTimestamp::getTimezoneOffset(Yii::app()->timezone)."';")->execute();
+    }    
+    
+	/**
 	 * Quotes a table name for use in a query.
 	 * A simple table name does not schema prefix.
 	 * @param string $name table name
@@ -127,6 +138,15 @@ class CMysqlSchema extends CDbSchema
 	}
 
 	/**
+	 * Creates a format for this schema.
+	 * @return CDbFormatter the formatter class
+	 */
+	public function createFormat()
+	{
+		return new CMysqlFormatter($this);
+	}
+
+	/**
 	 * Generates various kinds of table names.
 	 * @param CMysqlTableSchema $table the table instance
 	 * @param string $name the unquoted table name
@@ -195,7 +215,7 @@ class CMysqlSchema extends CDbSchema
 		$c->allowNull=$column['Null']==='YES';
 		$c->isPrimaryKey=strpos($column['Key'],'PRI')!==false;
 		$c->isForeignKey=false;
-		$c->init($column['Type'],$column['Default']);
+		$c->init($column['Type'],null); //$column['Default']);
 		$c->autoIncrement=strpos(strtolower($column['Extra']),'auto_increment')!==false;
 
 		return $c;

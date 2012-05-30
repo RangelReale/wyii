@@ -195,6 +195,16 @@ class CLocale extends CComponent
 	}
 
 	/**
+	 * @return string the statistical format
+	 */
+	public function getStatisticalFormat()
+	{
+		if (isset($this->_data['statisticalFormat']))
+			return $this->_data['statisticalFormat'];
+		return $this->_data['decimalFormat'];
+	}
+
+	/**
 	 * @param integer $month month (1-12)
 	 * @param string $width month name width. It can be 'wide', 'abbreviated' or 'narrow'.
 	 * @param boolean $standAlone whether the month name should be returned in stand-alone format
@@ -277,6 +287,83 @@ class CLocale extends CComponent
 	}
 
 	/**
+	 * @param string Yii date format
+	 * @return string PHP date format
+	 */
+	public static function convertToPHPDateFormat($pattern, $formatMap=array())
+	{
+		if (count($formatMap)==0)
+			$formatMap=array(
+				//'G'=>'formatEra',
+				'yyyy'=>'Y',
+				'yy'=>'y',
+				'MM'=>'m',
+				'M'=>'n',
+				'dd'=>'d',
+				'd'=>'j',
+				'hh'=>'H',
+				'HH'=>'H',
+				'h'=>'G',
+				'H'=>'g',
+				'mm'=>'i',
+				'm'=>'i',
+				'ss'=>'s',
+				's'=>'s',
+			);
+	
+		$tokens=array();
+		$n=strlen($pattern);
+		$isLiteral=false;
+		$literal='';
+		for($i=0;$i<$n;++$i)
+		{
+			$c=$pattern[$i];
+			if($c==="'")
+			{
+				if($i<$n-1 && $pattern[$i+1]==="'")
+				{
+					$tokens[]="'";
+					$i++;
+				}
+				else if($isLiteral)
+				{
+					$tokens[]=$literal;
+					$literal='';
+					$isLiteral=false;
+				}
+				else
+				{
+					$isLiteral=true;
+					$literal='';
+				}
+			}
+			else if($isLiteral)
+				$literal.=$c;
+			else
+			{
+				for($j=$i+1;$j<$n;++$j)
+				{
+					if($pattern[$j]!==$c)
+						break;
+				}
+				$p=str_repeat($c,$j-$i);
+				if(isset($formatMap[$p]))
+					$tokens[]=$formatMap[$p];
+				else
+					$tokens[]=$p;
+				$i=$j-1;
+			}
+		}
+		if($literal!=='')
+			$tokens[]=$literal;
+
+		$ret='';
+		foreach ($tokens as $token)
+			$ret.=$token;
+		return $ret;
+	}
+
+	/**
 	 * @param string $width date format width. It can be 'full', 'long', 'medium' or 'short'.
 	 * @return string date format
 	 */
@@ -300,6 +387,22 @@ class CLocale extends CComponent
 	public function getDateTimeFormat()
 	{
 		return $this->_data['dateTimeFormat'];
+	}
+	
+	/**
+	 * @return string full datetime format.
+	 */
+	public function getFullDateTimeFormat($dateWidth='medium', $timeWidth='medium')
+	{
+		return strtr($this->_data['dateTimeFormat'],array('{0}'=>$this->getTimeFormat($timeWidth),'{1}'=>$this->getDateFormat($dateWidth)));
+	}
+	
+	/**
+	 * @return string full datetime format.
+	 */
+	public function getFullPHPDateTimeFormat($dateWidth='medium', $timeWidth='medium', $formatMap=array())
+	{
+		return strtr($this->_data['dateTimeFormat'],array('{0}'=>self::convertToPHPDateFormat($this->getTimeFormat($timeWidth), $formatMap),'{1}'=>self::convertToPHPDateFormat($this->getDateFormat($dateWidth), $formatMap)));
 	}
 
 	/**

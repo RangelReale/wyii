@@ -78,6 +78,7 @@ abstract class CValidator extends CComponent
 		'boolean'=>'CBooleanValidator',
 		'safe'=>'CSafeValidator',
 		'unsafe'=>'CUnsafeValidator',
+		'formatparse'=>'CFormatParseValidator',
 		'date'=>'CDateValidator',
 	);
 
@@ -228,7 +229,13 @@ abstract class CValidator extends CComponent
 	 */
 	public function applyTo($scenario)
 	{
-		return empty($this->on) || isset($this->on[$scenario]);
+		if (empty($this->on)) return true;
+		
+		foreach ($this->on as $on)
+			if (in_array($on, $scenario))
+				return true;
+	
+		return false;
 	}
 
 	/**

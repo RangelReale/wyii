@@ -66,7 +66,10 @@ class CNumberValidator extends CValidator
 	 * @since 1.1.7
 	 */
 	public $numberPattern='/^\s*[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?\s*$/';
-
+    /**
+     * @var boolean whether the number is in native format
+     */
+    public $isNativeFormat = false;
 
 	/**
 	 * Validates the attribute of the object.
@@ -89,7 +92,7 @@ class CNumberValidator extends CValidator
 		}
 		else
 		{
-			if(!preg_match($this->numberPattern,"$value"))
+			if(!preg_match('/^\s*[-+]?[0-9]*\\'.($this->isNativeFormat?'.':Yii::app()->locale->getNumberSymbol('decimal')).'?[0-9]+([eE][-+]?[0-9]+)?\s*$/',"$value"))
 			{
 				$message=$this->message!==null?$this->message:Yii::t('yii','{attribute} must be a number.');
 				$this->addError($object,$attribute,$message);

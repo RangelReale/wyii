@@ -49,6 +49,8 @@
 class CFormatter extends CApplicationComponent
 {
 	private $_htmlPurifier;
+    private $_customTypes = array();
+    private $_customTypesConfig = array();
 
 	/**
 	 * @var string the format string to be used to format a date using PHP date() function. Defaults to 'Y/m/d'.
@@ -100,6 +102,34 @@ class CFormatter extends CApplicationComponent
 			return parent::__call($name,$parameters);
 	}
 
+    public function setCustomTypes($value)
+    {
+        $this->_customTypesConfig = $value;
+    }
+
+    public function hasCustomType($type)
+    {
+        return isset($this->_customTypesConfig[$type]);
+    }
+
+    public function getCustomType($type)
+    {
+        if (!isset($this->_customTypes[$type]))
+            $this->_customTypes[$type]=Yii::createComponent($this->_customTypesConfig[$type]);
+
+        return $this->_customTypes[$type];
+    }
+
+    public function formatCustomType($value,$type)
+    {
+        return $this->getCustomType($type)->format($value);
+    }
+
+    public function parseCustomType($value,$type)
+    {
+        return $this->getCustomType($type)->parse($value);
+    }
+
 	/**
 	 * Formats a value based on the given type.
 	 * @param mixed $value the value to be formatted
@@ -110,8 +140,13 @@ class CFormatter extends CApplicationComponent
 	public function format($value,$type)
 	{
 		$method='format'.$type;
+		$method2='parse'.$type;
 		if(method_exists($this,$method))
 			return $this->$method($value);
+		elseif(method_exists($this,$method2))
+			return $this->$method2($value);
+        elseif($this->hasCustomType($type))
+            return $this->formatCustomType($value, $type);
 		else
 			throw new CException(Yii::t('yii','Unknown type "{type}".',array('{type}'=>$type)));
 	}
@@ -145,6 +180,16 @@ class CFormatter extends CApplicationComponent
 	public function formatNtext($value)
 	{
 		return nl2br(CHtml::encode($value));
+	}
+
+	/**
+	 * Formats the value as text suitable for flash.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 */
+	public function formatFlashText($value)
+	{
+		return str_replace(array("\r\n", "\r"), "\n", $value);
 	}
 
 	/**
@@ -244,6 +289,348 @@ class CFormatter extends CApplicationComponent
 	{
 		return number_format($value,$this->numberFormat['decimals'],$this->numberFormat['decimalSeparator'],$this->numberFormat['thousandSeparator']);
 	}
+
+	/**
+	 * Formats the value as a currency using PHP number_format() function.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 * @see numberFormat
+	 */
+	public function formatCurrency($value, $currency='')
+	{
+		return $this->formatNumber($value);
+	}
+
+	/**
+	 * Formats the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 * @see numberFormat
+	 */
+	public function formatPercentage($value)
+	{
+		return $this->formatNumber($value);
+	}
+
+	/**
+	 * Formats the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 * @see numberFormat
+	 */
+	public function formatStatistical($value)
+	{
+		return $this->formatNumber($value);
+	}
+
+	/**
+	 * Formats the value as a byte value.
+	 * @param mixed the value to be formatted
+     * @param string the minimum byte measure to return
+	 * @return string the formatted result
+	 */
+    function formatBytes($value, $min = '')
+	{
+		$ext = array('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
+		$unitCount = 0;
+		for(; $value > 1024; $unitCount++)
+		{
+			$value /= 1024;
+			if ($ext[$unitCount] == $min) break;
+		}
+		return $this->formatCurrency($value).' '.$ext[$unitCount];
+	}
+
+    /**
+     * Formats the value as a type period.
+     * @param integer the value to be formatted
+     * @return string the formatted result
+     */
+    function formatTimeperiod($value)
+    {
+        $padHours = true;
+
+        // start with a blank string
+        $hms = "";
+
+        // do the hours first: there are 3600 seconds in an hour, so if we divide
+        // the total number of seconds by 3600 and throw away the remainder, we're
+        // left with the number of hours in those seconds
+        $hours = intval(intval($value) / 3600);
+
+        // add hours to $hms (with a leading 0 if asked for)
+        $hms .= ($padHours)
+              ? str_pad($hours, 2, "0", STR_PAD_LEFT). ":"
+              : $hours. ":";
+
+        // dividing the total seconds by 60 will give us the number of minutes
+        // in total, but we're interested in *minutes past the hour* and to get
+        // this, we have to divide by 60 again and then use the remainder
+        $minutes = intval(($value / 60) % 60);
+
+        // add minutes to $hms (with a leading 0 if needed)
+        $hms .= str_pad($minutes, 2, "0", STR_PAD_LEFT). ":";
+
+        // seconds past the minute are found by dividing the total number of seconds
+        // by 60 and using the remainder
+        $seconds = intval($value % 60);
+
+        $dt = mktime($hours, $minutes, $seconds, null, null, null);
+        return $this->formatTime($dt);
+
+        // add seconds to $hms (with a leading 0 if needed)
+        $hms .= str_pad($value, 2, "0", STR_PAD_LEFT);
+
+        // done!
+        return $hms;
+    }
+
+    /**
+     * Formats the value as a bit mask.
+     * @param integer the value to be formatted
+     * @return array a list of the selected bits
+     */
+    function formatBitmask($value)
+    {
+        $value = (int)$value;
+
+        $ret = array();
+        for ($i=0; $i<32; $i++)
+        {
+            $p = pow(2, $i);
+            if (($value & $p)==$p)
+                $ret[]=$i;
+        }
+        return $ret;
+    }
+
+	/**
+	 * Parse a value based on the given type.
+	 * @param mixed the value to be parsed
+	 * @param string the data type. This must correspond to a parse method available in CFormatter.
+	 * For example, we can use 'text' here because there is method named {@link parseText}.
+	 * @return string the parsed data
+	 */
+	public function parse($value,$type)
+	{
+		$method='parse'.$type;
+		if(method_exists($this,$method))
+			return $this->$method($value);
+        elseif($this->hasCustomType($type))
+            return $this->parseCustomType($value, $type);
+		else
+			throw new CException(Yii::t('yii','Unknown type "{type}".',array('{type}'=>$type)));
+	}
+
+	/**
+	 * Parse the value as is without any formatting.
+	 * This method simply returns back the parameter without any parsing.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseRaw($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as a HTML-encoded plain text.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseText($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as a HTML-encoded plain text.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseNtext($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as HTML text without any encoding.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseHtml($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as a date.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see dateFormat
+	 */
+	public function parseDate($value)
+	{
+		if ($value!==null && $value!='')
+			return strptime($value, $this->dateFormat);
+		return null;
+	}
+
+	/**
+	 * Parse the value as a time.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see timeFormat
+	 */
+	public function parseTime($value)
+	{
+		if ($value!==null && $value!='')
+			return strptime($value, $this->timeFormat);
+		return null;
+	}
+
+	/**
+	 * Parse the value as a date and time.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see datetimeFormat
+	 */
+	public function parseDatetime($value)
+	{
+		if ($value!==null && $value!='')
+			return strptime($value, $this->datetimeFormat);
+		return null;
+	}
+
+	/**
+	 * Parse the value as a boolean.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see trueText
+	 * @see falseText
+	 */
+	public function parseBoolean($value)
+	{
+		return $value==$this->booleanFormat[1]? 1 : 0;
+	}
+
+	/**
+	 * Parse the value as a mailto link.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseEmail($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as an image tag.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseImage($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Prase the value as a hyperlink.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 */
+	public function parseUrl($value)
+	{
+		return $value;
+	}
+
+	/**
+	 * Parse the value as a number formatted by the PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parseNumber($value)
+	{
+		return $value;
+	}
+	
+	/**
+	 * Parses the value as a currency using PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parseCurrency($value, $currency='')
+	{
+		return $this->parseNumber($value);
+	}
+
+	/**
+	 * Parses the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parsePercentage($value)
+	{
+		return $this->parseNumber($value);
+	}
+
+	/**
+	 * Parses the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parseStatistical($value)
+	{
+		return $this->parseNumber($value);
+	}
+
+	/**
+	 * Parses the value as a time period.
+	 * @param mixed the value to be parsed
+	 * @return integer the parsed result
+	 */
+	public function parseTimeperiod($value)
+	{
+		$time = $this->parseTime($value);
+        return $this->calcTimePeriod($time);
+	}
+
+	/**
+	 * Calculates the time period from a time integer.
+	 * @param integer time value
+	 * @return integer the calculated value
+	 */
+	public function calcTimeperiod($value)
+	{
+        if ($value !== false && $value !== null)
+        {
+            $dt=getdate($value);
+            return $dt['seconds'] + ($dt['minutes'] * 60) + ($dt['hours'] * 60 * 60);
+        }
+        return $value;
+    }
+
+	/**
+	 * Parses the value as a bit mask.
+	 * @param mixed the list of items as an array or comma-delimited string
+	 * @return integer the bit mask
+	 */
+    function parseBitmask($value)
+    {
+        if (!is_array($value))
+            $value = explode(',', $value);
+
+        $ret = 0;
+        foreach ($value as $item)
+        {
+            $ret |= pow(2, $item);
+        }
+        return $ret;
+    }
 
 	/**
 	 * @return CHtmlPurifier the HTML purifier instance

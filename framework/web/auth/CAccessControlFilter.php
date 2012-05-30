@@ -52,7 +52,7 @@
  *	 // where $user is the current application user object and $rule is this access rule.
  *   // This option is available since version 1.1.11.
  *   'deniedCallback'=>'redirectToDeniedMethod',
-  * )
+ * )
  * </pre>
  *
  * @property array $rules List of access rules.
@@ -106,6 +106,15 @@ class CAccessControlFilter extends CFilter
 	}
 
 	/**
+	 * Returns the user used to perform the access check.
+	 * @return CWebUser the user
+	 */
+	protected function getUser()
+	{
+		return Yii::app()->getUser();
+	}
+
+	/**
 	 * Performs the pre-action filtering.
 	 * @param CFilterChain $filterChain the filter chain that the filter is on.
 	 * @return boolean whether the filtering process should continue and the action
@@ -115,7 +124,7 @@ class CAccessControlFilter extends CFilter
 	{
 		$app=Yii::app();
 		$request=$app->getRequest();
-		$user=$app->getUser();
+		$user=$this->getUser();
 		$verb=$request->getRequestType();
 		$ip=$request->getUserHostAddress();
 
@@ -128,7 +137,7 @@ class CAccessControlFilter extends CFilter
 				if(isset($rule->deniedCallback))
 					call_user_func($rule->deniedCallback, $rule);
 				else
-					$this->accessDenied($user,$this->resolveErrorMessage($rule));
+				$this->accessDenied($user,$this->resolveErrorMessage($rule));
 				return false;
 			}
 		}

@@ -205,7 +205,7 @@ class CDbCommandBuilder extends CComponent
 				else
 				{
 					$placeholders[]=self::PARAM_PREFIX.$i;
-					$values[self::PARAM_PREFIX.$i]=$column->typecast($value);
+					$values[self::PARAM_PREFIX.$i]=$column->typecast($column->valueToDb($value));
 					$i++;
 				}
 			}
@@ -255,12 +255,12 @@ class CDbCommandBuilder extends CComponent
 				else if($bindByPosition)
 				{
 					$fields[]=$column->rawName.'=?';
-					$values[]=$column->typecast($value);
+					$values[]=$column->typecast($column->valueToDb($value));
 				}
 				else
 				{
 					$fields[]=$column->rawName.'='.self::PARAM_PREFIX.$i;
-					$values[self::PARAM_PREFIX.$i]=$column->typecast($value);
+					$values[self::PARAM_PREFIX.$i]=$column->typecast($column->valueToDb($value));
 					$i++;
 				}
 			}
@@ -655,7 +655,7 @@ class CDbCommandBuilder extends CComponent
 
 			foreach($values as &$value)
 			{
-				$value=$column->typecast($value);
+				$value=$column->typecast($column->valueToDb($value));
 				if(is_string($value))
 					$value=$db->quoteValue($value);
 			}
@@ -676,7 +676,7 @@ class CDbCommandBuilder extends CComponent
 				{
 					if(isset($values[$i][$name]))
 					{
-						$value=$table->columns[$name]->typecast($values[$i][$name]);
+						$value=$table->columns[$name]->typecast($table->columns[$name]->valueToDb($values[$i][$name]));
 						if(is_string($value))
 							$values[$i][$name]=$db->quoteValue($value);
 						else

@@ -195,6 +195,10 @@ class CDbConnection extends CApplicationComponent
 	 */
 	public $charset;
 	/**
+	 * @var boolean whether to use Yii::app()->timezone as the db connection timezone.
+	 */
+    public $useTimezone = false;
+	/**
 	 * @var boolean whether to turn on prepare emulation. Defaults to false, meaning PDO
 	 * will use the native prepare support if available. For some databases (such as MySQL),
 	 * this may need to be set true so that PDO can emulate the prepare support to bypass
@@ -444,6 +448,9 @@ class CDbConnection extends CApplicationComponent
 			foreach($this->initSQLs as $sql)
 				$pdo->exec($sql);
 		}
+        if ($this->useTimezone)
+            // initialize schema to set the timezone
+            $this->getSchema();
 	}
 
 	/**
@@ -491,8 +498,19 @@ class CDbConnection extends CApplicationComponent
 	{
 		Yii::trace('Starting transaction','system.db.CDbConnection');
 		$this->setActive(true);
-		$this->_pdo->beginTransaction();
-		return $this->_transaction=new CDbTransaction($this);
+		//if($this->getActive())
+		//{
+			if ($this->_transaction===null || !$this->_transaction->getActive())
+				$this->_transaction=new CDbTransaction($this);
+
+			$this->_transaction->begin();
+			return $this->_transaction;
+		
+			//$this->_pdo->beginTransaction();
+			//return $this->_transaction=new CDbTransaction($this);
+		//}
+		//else
+			//throw new CDbException(Yii::t('yii','CDbConnection is inactive and cannot perform any DB operations.'));
 	}
 
 	/**
@@ -512,6 +530,15 @@ class CDbConnection extends CApplicationComponent
 				throw new CDbException(Yii::t('yii','CDbConnection does not support reading schema for {driver} database.',
 					array('{driver}'=>$driver)));
 		}
+	}
+
+	/**
+	 * Returns the formatter for the current schema.
+	 * @return CDbFormatter the formatter
+	 */
+	public function getFormat()
+	{
+		return $this->schema->format;
 	}
 
 	/**

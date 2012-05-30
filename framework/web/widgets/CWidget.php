@@ -157,6 +157,18 @@ class CWidget extends CBaseController
 	}
 
 	/**
+	 * Executes the widget, returning the output.
+	 */
+	public function output()
+	{
+		ob_start();
+		ob_implicit_flush(false);
+		$this->run();		
+		$output=ob_get_clean();
+		return $output;
+	}
+
+	/**
 	 * Returns the directory containing the view files for this widget.
 	 * The default implementation returns the 'views' subdirectory of the directory containing the widget class file.
 	 * If $checkTheme is set true, the directory "ThemeID/views/ClassName" will be returned when it exists.

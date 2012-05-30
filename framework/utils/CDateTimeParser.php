@@ -187,11 +187,11 @@ class CDateTimeParser
 			return false;
 
 		if(!isset($year))
-			$year=isset($defaults['year']) ? $defaults['year'] : date('Y');
+			$year=isset($defaults['year']) ? $defaults['year'] : 0; //date('Y');
 		if(!isset($month))
-			$month=isset($defaults['month']) ? $defaults['month'] : date('n');
+			$month=isset($defaults['month']) ? $defaults['month'] : 0; //date('n');
 		if(!isset($day))
-			$day=isset($defaults['day']) ? $defaults['day'] : date('j');
+			$day=isset($defaults['day']) ? $defaults['day'] : 0; //date('j');
 
 		if(strlen($year)===2)
 		{
@@ -212,11 +212,11 @@ class CDateTimeParser
 		else
 		{
 			if(!isset($hour))
-				$hour=isset($defaults['hour']) ? $defaults['hour'] : date('H');
+				$hour=isset($defaults['hour']) ? $defaults['hour'] : 0; //date('H');
 			if(!isset($minute))
-				$minute=isset($defaults['minute']) ? $defaults['minute'] : date('i');
+				$minute=isset($defaults['minute']) ? $defaults['minute'] : 0; //date('i');
 			if(!isset($second))
-				$second=isset($defaults['second']) ? $defaults['second'] : date('s');
+				$second=isset($defaults['second']) ? $defaults['second'] : 0; //date('s');
 			$hour=(int)$hour;
 			$minute=(int)$minute;
 			$second=(int)$second;

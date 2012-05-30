@@ -50,6 +50,8 @@ class CThemeManager extends CApplicationComponent
 
 	private $_basePath=null;
 	private $_baseUrl=null;
+    private $_themesConfig = array();
+    private $_themes = array();
 
 
 	/**
@@ -58,6 +60,13 @@ class CThemeManager extends CApplicationComponent
 	 */
 	public function getTheme($name)
 	{
+        if ($name === null) return null;
+
+        if (!isset($this->_themes[$name]) && isset($this->_themesConfig[$name]))
+            $this->_themes[$name] = Yii::createComponent($this->_themesConfig[$name], $name, null, null);
+        if (isset($this->_themes[$name]))
+            return $this->_themes[$name];
+
 		$themePath=$this->getBasePath().DIRECTORY_SEPARATOR.$name;
 		if(is_dir($themePath))
 		{
@@ -67,6 +76,15 @@ class CThemeManager extends CApplicationComponent
 		else
 			return null;
 	}
+
+    /**
+     * Set themes configuration
+     * @param array themes configuration
+     */
+    public function setThemes($value)
+    {
+        $this->_themesConfig = $value;
+    }
 
 	/**
 	 * @return array list of available theme names

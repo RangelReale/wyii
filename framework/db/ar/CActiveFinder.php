@@ -49,6 +49,11 @@ class CActiveFinder extends CComponent
 		$this->buildJoinTree($this->_joinTree,$with);
 	}
 
+        public function getJoinTree()
+        {
+            return $this->_joinTree;
+        }
+
 	/**
 	 * Do not call this method. This method is used internally to perform the relational query
 	 * based on the given DB criteria.
@@ -56,9 +61,10 @@ class CActiveFinder extends CComponent
 	 * @param boolean $all whether to bring back all records
 	 * @return mixed the query result
 	 */
-	public function query($criteria,$all=false)
+	public function query($criteria,$all=false,$reader=false)
 	{
 		$this->joinAll=$criteria->together===true;
+        $this->_joinTree->model->applyScopes($criteria);
 		$this->_joinTree->beforeFind(false);
 
 		if($criteria->alias!='')
@@ -67,27 +73,34 @@ class CActiveFinder extends CComponent
 			$this->_joinTree->rawTableAlias=$this->_builder->getSchema()->quoteTableName($criteria->alias);
 		}
 
-		$this->_joinTree->find($criteria);
-		$this->_joinTree->afterFind();
+		$this->_joinTree->find($criteria,$reader);
+        if (!$reader)
+            $this->_joinTree->afterFind();
 
 		if($all)
 		{
-			$result = array_values($this->_joinTree->records);
-			if ($criteria->index!==null)
-			{
-				$index=$criteria->index;
-				$array=array();
-				foreach($result as $object)
-					$array[$object->$index]=$object;
-				$result=$array;
-			}
+            if (!$reader)
+            {
+                $result = array_values($this->_joinTree->records);
+                if ($criteria->index!==null)
+                {
+                    $index=$criteria->index;
+                    $array=array();
+                    foreach($result as $object)
+                        $array[$object->$index]=$object;
+                    $result=$array;
+                }
+            }
+            else
+                $result = $this->_joinTree->records;
 		}
 		else if(count($this->_joinTree->records))
 			$result = reset($this->_joinTree->records);
 		else
 			$result = null;
 
-		$this->destroyJoinTree();
+        if (!$reader)
+            $this->destroyJoinTree();
 		return $result;
 	}
 
@@ -147,6 +160,7 @@ class CActiveFinder extends CComponent
 	{
 		Yii::trace(get_class($this->_joinTree->model).'.count() eagerly','system.db.ar.CActiveRecord');
 		$this->joinAll=$criteria->together!==true;
+        $this->_joinTree->model->applyScopes($criteria);
 
 		$alias=$criteria->alias===null ? 't' : $criteria->alias;
 		$this->_joinTree->tableAlias=$alias;
@@ -208,12 +222,25 @@ class CActiveFinder extends CComponent
 				$with=substr($with,0,$pos);
 			}
 
-			if(isset($parent->children[$with]) && $parent->children[$with]->master===null)
-				return $parent->children[$with];
+            if ($parent === null)
+                return null;
+
+            if(isset($parent->children[$with]) && empty($parent->children[$with]->relation->through))
+                return $parent->children[$with];
 
 			if(($relation=$parent->model->getActiveRelation($with))===null)
 				throw new CDbException(Yii::t('yii','Relation "{name}" is not defined in active record class "{class}".',
 					array('{class}'=>get_class($parent->model), '{name}'=>$with)));
+
+			if(!empty($relation->through) && !isset($parent->children[$relation->through]))
+				$this->buildJoinTree($parent,$relation->through,array('select'=>false));
+
+            if ($relation instanceof CManualRelation)
+                return null;
+/*
+				throw new CDbException(Yii::t('yii','Relation "{name}" cannot be joined with other queries.',
+					array('{name}'=>$with)));
+*/
 
 			$relation=clone $relation;
 			$model=CActiveRecord::model($relation->className);
@@ -282,7 +309,17 @@ class CActiveFinder extends CComponent
 				$relation->mergeWith($options);
 
 			if($relation instanceof CActiveRelation)
+            {
 				$model->setTableAlias($oldAlias);
+/*
+                if (is_array($relation->scopes))
+                {
+                    $model->resetScope()->callScopes($relation->scopes);
+                    $relation->mergeWith($model->getDbCriteria(),true);
+                    $model->resetScope();
+                }
+ */
+            }
 
 			if($relation instanceof CStatRelation)
 				return new CStatElement($this,$relation,$parent);
@@ -324,7 +361,7 @@ class CActiveFinder extends CComponent
  * CJoinElement represents a tree node in the join tree created by {@link CActiveFinder}.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id$
+ * @version $Id: CActiveFinder.php 1812 2010-02-18 21:31:46Z qiang.xue $
  * @package system.db.ar
  * @since 1.0
  */
@@ -398,9 +435,13 @@ class CJoinElement
 			$this->_parent=$parent;
 			$this->model=CActiveRecord::model($relation->className);
 			$this->_builder=$this->model->getCommandBuilder();
-			$this->tableAlias=$relation->alias===null?$relation->name:$relation->alias;
-			$this->rawTableAlias=$this->_builder->getSchema()->quoteTableName($this->tableAlias);
+			//$this->tableAlias=$relation->alias===null?$relation->name:$relation->alias;
+			//$this->rawTableAlias=$this->_builder->getSchema()->quoteTableName($this->tableAlias);
+            if (is_array($relation->callScopes))
+                $this->model->callScopes($relation->callScopes);
 			$this->_table=$this->model->getTableSchema();
+                        $this->tableAlias=$this->defaultTableAlias();
+			$this->rawTableAlias=$this->_builder->getSchema()->quoteTableName($this->tableAlias);
 		}
 		else  // root element, the first parameter is the model.
 		{
@@ -428,6 +469,66 @@ class CJoinElement
 		}
 	}
 
+        public function getRootElement()
+        {
+            if ($this->_parent===null) return $this;
+            return $this->_parent->getRootElement();
+        }
+
+        public function defaultTableAlias()
+        {
+            if($this->_parent!==null)
+            {
+                    if ($this->relation->alias===null)
+                        return $this->_parent->defaultTableAlias().'_'.$this->relation->name;
+                    return $this->relation->alias;
+            }
+            else  // root element, the first parameter is the model.
+            {
+                    //return 't';
+                    return $this->model->tableAlias;
+            }
+        }
+
+        public function translateAlias($alias, $raw=true)
+        {
+            $element=$this;
+            foreach(explode('.', $alias) as $item)
+            {
+                if ($item=='@')
+                    $element=$this;
+                elseif ($item=='!')
+                    $element=$this->getRootElement();
+                else
+                    $element=$element->children[$item];
+            }
+            if ($raw) return $element->rawTableAlias;
+            return $element->tableAlias;
+        }
+
+
+        public function translateFieldAliases($condition)
+        {
+            if (preg_match_all('/\[\[(.*?)\]\]/', $condition, $matches, PREG_SET_ORDER|PREG_OFFSET_CAPTURE)!==false)
+            {
+                if (count($matches)==0) return $condition;
+
+                $lastpos=0;
+                $ret='';
+                foreach ($matches as $alias)
+                {
+                    $tlen=$alias[0][1]-$lastpos;
+                    $ret.=substr($condition, $lastpos, $tlen);
+                    $ret.=$this->translateAlias($alias[1][0]);
+                    $lastpos+=$tlen+strlen($alias[0][0]);
+                }
+                $ret.=substr($condition, $lastpos);
+                return $ret;
+            }
+            else
+                return $condition;
+        }
+
 	/**
 	 * Removes references to child elements and finder to avoid circular references.
 	 * This is internally used.
@@ -446,7 +547,7 @@ class CJoinElement
 	 * Performs the recursive finding with the criteria.
 	 * @param CDbCriteria $criteria the query criteria
 	 */
-	public function find($criteria=null)
+	public function find($criteria=null,$reader=false)
 	{
 		if($this->_parent===null) // root element
 		{
@@ -454,7 +555,7 @@ class CJoinElement
 			$this->_finder->baseLimited=($criteria->offset>=0 || $criteria->limit>=0);
 			$this->buildQuery($query);
 			$this->_finder->baseLimited=false;
-			$this->runQuery($query);
+			$this->runQuery($query,$reader);
 		}
 		else if(!$this->_joined && !empty($this->_parent->records)) // not joined before
 		{
@@ -506,14 +607,14 @@ class CJoinElement
 
 		$query=new CJoinQuery($child);
 		$query->selects=array();
-		$query->selects[]=$child->getColumnSelect($child->relation->select);
+		$query->selects[]=$child->getColumnSelect($child->translateFieldAliases($child->relation->select));
 		$query->conditions=array();
-		$query->conditions[]=$child->relation->condition;
-		$query->conditions[]=$child->relation->on;
-		$query->groups[]=$child->relation->group;
-		$query->joins[]=$child->relation->join;
-		$query->havings[]=$child->relation->having;
-		$query->orders[]=$child->relation->order;
+		$query->conditions[]=$child->translateFieldAliases($child->relation->condition);
+		$query->conditions[]=$child->translateFieldAliases($child->relation->on);
+		$query->groups[]=$child->translateFieldAliases($child->relation->group);
+		$query->joins[]=$child->translateFieldAliases($child->relation->join);
+		$query->havings[]=$child->translateFieldAliases($child->relation->having);
+		$query->orders[]=$child->translateFieldAliases($child->relation->order);
 		if(is_array($child->relation->params))
 			$query->params=$child->relation->params;
 		$query->elements[$child->id]=true;
@@ -635,7 +736,7 @@ class CJoinElement
 				$join='INNER JOIN '.$joinTable->rawName.' '.$joinAlias.' ON ';
 				$join.='('.implode(') AND (',$parentCondition).') AND ('.implode(') AND (',$childCondition).')';
 				if(!empty($this->relation->on))
-					$join.=' AND ('.$this->relation->on.')';
+					$join.=' AND ('.$this->translateFieldAliases($this->relation->on).')';
 				$query->joins[]=$join;
 				foreach($params as $name=>$value)
 					$query->params[$name]=$value;
@@ -817,11 +918,16 @@ class CJoinElement
 	 * Executes the join query and populates the query results.
 	 * @param CJoinQuery $query the query to be executed.
 	 */
-	public function runQuery($query)
+	public function runQuery($query,$reader=false)
 	{
 		$command=$query->createCommand($this->_builder);
-		foreach($command->queryAll() as $row)
-			$this->populateRecord($query,$row);
+        if (!$reader)
+        {
+            foreach($command->queryAll() as $row)
+                $this->populateRecord($query,$row);
+        }
+        else
+            $this->records = new CActiveDataReader($this, $query, $command);
 	}
 
 	/**
@@ -830,7 +936,7 @@ class CJoinElement
 	 * @param array $row a row of data
 	 * @return CActiveRecord the populated record
 	 */
-	private function populateRecord($query,$row)
+	public function populateRecord($query,$row)
 	{
 		// determine the primary key value
 		if(is_string($this->_pkAlias))  // single key
@@ -1124,7 +1230,11 @@ class CJoinElement
 			$joins[]=$fke->getColumnPrefix().$schema->quoteColumnName($fk) . '=' . $pke->getColumnPrefix().$schema->quoteColumnName($pk);
 		}
 		if(!empty($this->relation->on))
-			$joins[]=$this->relation->on;
+			$joins[]=$this->translateFieldAliases($this->relation->on);
+/*
+		if(!empty($this->relation->condition))
+			$joins[]=$this->translateFieldAliases($this->relation->condition);
+*/
 		return $this->relation->joinType . ' ' . $this->getTableNameWithAlias() . ' ON (' . implode(') AND (',$joins).')';
 	}
 
@@ -1196,8 +1306,12 @@ class CJoinElement
 			$join.=' ON ('.implode(') AND (',$parentCondition).')';
 			$join.=' '.$this->relation->joinType.' '.$this->getTableNameWithAlias();
 			$join.=' ON ('.implode(') AND (',$childCondition).')';
+/*
+			if(!empty($this->relation->condition))
+				$join.=' AND ('.$this->translateFieldAliases($this->relation->condition).')';
+*/
 			if(!empty($this->relation->on))
-				$join.=' AND ('.$this->relation->on.')';
+				$join.=' AND ('.$this->translateFieldAliases($this->relation->on).')';
 			return $join;
 		}
 		else
@@ -1211,7 +1325,7 @@ class CJoinElement
  * CJoinQuery represents a JOIN SQL statement.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id$
+ * @version $Id: CActiveFinder.php 1812 2010-02-18 21:31:46Z qiang.xue $
  * @package system.db.ar
  * @since 1.0
  */
@@ -1262,6 +1376,8 @@ class CJoinQuery
 	 */
 	public $elements=array();
 
+        private $_joinElement;
+
 	/**
 	 * Constructor.
 	 * @param CJoinElement $joinElement The root join tree.
@@ -1269,15 +1385,16 @@ class CJoinQuery
 	 */
 	public function __construct($joinElement,$criteria=null)
 	{
+                $this->_joinElement=$joinElement;
 		if($criteria!==null)
 		{
-			$this->selects[]=$joinElement->getColumnSelect($criteria->select);
+			$this->selects[]=$joinElement->getColumnSelect($joinElement->translateFieldAliases($criteria->select));
 			$this->joins[]=$joinElement->getTableNameWithAlias();
 			$this->joins[]=$criteria->join;
-			$this->conditions[]=$criteria->condition;
-			$this->orders[]=$criteria->order;
-			$this->groups[]=$criteria->group;
-			$this->havings[]=$criteria->having;
+			$this->conditions[]=$joinElement->translateFieldAliases($criteria->condition);
+			$this->orders[]=$joinElement->translateFieldAliases($criteria->order);
+			$this->groups[]=$joinElement->translateFieldAliases($criteria->group);
+			$this->havings[]=$joinElement->translateFieldAliases($criteria->having);
 			$this->limit=$criteria->limit;
 			$this->offset=$criteria->offset;
 			$this->params=$criteria->params;
@@ -1302,13 +1419,13 @@ class CJoinQuery
 		if($element->slave!==null)
 			$this->join($element->slave);
 		if(!empty($element->relation->select))
-			$this->selects[]=$element->getColumnSelect($element->relation->select);
-		$this->conditions[]=$element->relation->condition;
-		$this->orders[]=$element->relation->order;
+			$this->selects[]=$element->getColumnSelect($element->translateFieldAliases($element->relation->select));
+		$this->conditions[]=$element->translateFieldAliases($element->relation->condition);
+		$this->orders[]=$element->translateFieldAliases($element->relation->order);
 		$this->joins[]=$element->getJoinCondition();
-		$this->joins[]=$element->relation->join;
-		$this->groups[]=$element->relation->group;
-		$this->havings[]=$element->relation->having;
+		$this->joins[]=$element->translateFieldAliases($element->relation->join);
+		$this->groups[]=$element->translateFieldAliases($element->relation->group);
+		$this->havings[]=$element->translateFieldAliases($element->relation->having);
 
 		if(is_array($element->relation->params))
 		{
@@ -1323,7 +1440,7 @@ class CJoinQuery
 	/**
 	 * Creates the SQL statement.
 	 * @param CDbCommandBuilder $builder the command builder
-	 * @return CDbCommand DB command instance representing the SQL statement
+	 * @return string the SQL statement
 	 */
 	public function createCommand($builder)
 	{
@@ -1370,7 +1487,7 @@ class CJoinQuery
  * CStatElement represents STAT join element for {@link CActiveFinder}.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @version $Id$
+ * @version $Id: CActiveFinder.php 1812 2010-02-18 21:31:46Z qiang.xue $
  * @package system.db.ar
  */
 class CStatElement
@@ -1395,6 +1512,11 @@ class CStatElement
 		$this->_parent=$parent;
 		$this->relation=$relation;
 		$parent->stats[]=$this;
+	}
+
+	public function translateFieldAliases($field, $alias)
+	{
+		return str_replace('[[@]]', $alias, $field);
 	}
 
 	/**
@@ -1451,22 +1573,23 @@ class CStatElement
 
 		$records=$this->_parent->records;
 
-		$join=empty($relation->join)?'' : ' '.$relation->join;
-		$where=empty($relation->condition)?' WHERE ' : ' WHERE ('.$relation->condition.') AND ';
-		$group=empty($relation->group)?'' : ', '.$relation->group;
-		$having=empty($relation->having)?'' : ' HAVING ('.$relation->having.')';
-		$order=empty($relation->order)?'' : ' ORDER BY '.$relation->order;
+        $tableAlias=$model->getTableAlias(true);
+		$join=empty($relation->join)?'' : ' '.$this->translateFieldAliases($relation->join, $tableAlias);
+
+		$where=empty($relation->condition)?' WHERE ' : ' WHERE ('.$this->translateFieldAliases($relation->condition, $tableAlias).') AND ';
+		$group=empty($relation->group)?'' : ', '.$this->translateFieldAliases($relation->group, $tableAlias);
+		$having=empty($relation->having)?'' : ' HAVING ('.$this->translateFieldAliases($relation->having, $tableAlias).')';
+		$order=empty($relation->order)?'' : ' ORDER BY '.$this->translateFieldAliases($relation->order, $tableAlias);
 
 		$c=$schema->quoteColumnName('c');
 		$s=$schema->quoteColumnName('s');
 
-		$tableAlias=$model->getTableAlias(true);
 
 		// generate and perform query
 		if(count($fks)===1)  // single column FK
 		{
 			$col=$table->columns[$fks[0]]->rawName;
-			$sql="SELECT $col AS $c, {$relation->select} AS $s FROM {$table->rawName} ".$tableAlias.$join
+			$sql="SELECT $col AS $c, {$this->translateFieldAliases($relation->select, $tableAlias)} AS $s FROM {$table->rawName} ".$tableAlias.$join
 				.$where.'('.$builder->createInCondition($table,$fks[0],array_keys($records),$tableAlias.'.').')'
 				." GROUP BY $col".$group
 				.$having.$order;
@@ -1493,7 +1616,7 @@ class CStatElement
 				$name=$table->columns[$map[$pk]]->rawName;
 				$cols[$name]=$name.' AS '.$schema->quoteColumnName('c'.$n);
 			}
-			$sql='SELECT '.implode(', ',$cols).", {$relation->select} AS $s FROM {$table->rawName} ".$tableAlias.$join
+			$sql='SELECT '.implode(', ',$cols).", {$this->translateFieldAliases($relation->select, $tableAlias)} AS $s FROM {$table->rawName} ".$tableAlias.$join
 				.$where.'('.$builder->createInCondition($table,$fks,$keys,$tableAlias.'.').')'
 				.' GROUP BY '.implode(', ',array_keys($cols)).$group
 				.$having.$order;
@@ -1614,13 +1737,13 @@ class CStatElement
 			}
 		}
 
-		$join=empty($relation->join)?'' : ' '.$relation->join;
-		$where=empty($relation->condition)?'' : ' WHERE ('.$relation->condition.')';
-		$group=empty($relation->group)?'' : ', '.$relation->group;
-		$having=empty($relation->having)?'' : ' AND ('.$relation->having.')';
-		$order=empty($relation->order)?'' : ' ORDER BY '.$relation->order;
+		$join=empty($relation->join)?'' : ' '.$this->translateFieldAliases($relation->join, $table->rawName, $table->rawName);
+		$where=empty($relation->condition)?'' : ' WHERE ('.$this->translateFieldAliases($relation->condition, $table->rawName).')';
+		$group=empty($relation->group)?'' : ', '.$this->translateFieldAliases($relation->group, $table->rawName);
+		$having=empty($relation->having)?'' : ' AND ('.$this->translateFieldAliases($relation->having, $table->rawName).')';
+		$order=empty($relation->order)?'' : ' ORDER BY '.$this->translateFieldAliases($relation->order, $table->rawName);
 
-		$sql='SELECT '.$this->relation->select.' AS '.$schema->quoteColumnName('s').', '.implode(', ',$cols)
+		$sql='SELECT '.$this->translateFieldAliases($this->relation->select, $table->rawName).' AS '.$schema->quoteColumnName('s').', '.implode(', ',$cols)
 			.' FROM '.$table->rawName.' '.$tableAlias.' INNER JOIN '.$joinTable->rawName
 			.' ON ('.implode(') AND (',$joinCondition).')'.$join
 			.$where

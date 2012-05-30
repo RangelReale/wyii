@@ -345,6 +345,51 @@ class YiiBase
 	}
 
 	/**
+	 * Imports the definition of a class or a directory of class files.
+	 *
+	 * Path aliases are used to refer to the class file or directory being imported.
+	 * If className is '*', the alias is considered as a directory
+	 * which will be added to the PHP include paths; Otherwise, the path is
+	 * a path of a class file which is included when needed.
+	 *
+	 * @param string path to be imported
+	 * @param className to import. If '*', the entire directory is to be imported.
+	 * @param boolean whether to include the class file immediately. If false, the class file
+	 * will be included only when the class is being used.
+	 * @return string the class name or the directory that this path refers to
+	 * @throws CException if the alias is invalid
+	 */
+	public static function importPath($path,$className='*',$forceInclude=false,$importAlias='')
+	{
+		if($className!=='*')
+		{
+			if($forceInclude)
+			{
+				require($path.'.php');
+				if ($importAlias!='')
+					self::$_imports[$importAlias]=$className;
+			}
+			else
+				self::$_classes[$className]=$path.'.php';
+			return $className;
+		}
+		else  // a directory
+		{
+			if(self::$_includePaths===null)
+			{
+				self::$_includePaths=array_unique(explode(PATH_SEPARATOR,get_include_path()));
+				if(($pos=array_search('.',self::$_includePaths,true))!==false)
+					unset(self::$_includePaths[$pos]);
+			}
+			array_unshift(self::$_includePaths,$path);
+			if(set_include_path('.'.PATH_SEPARATOR.implode(PATH_SEPARATOR,self::$_includePaths))===false)
+				throw new CException(Yii::t('yii','Unable to import "{alias}". Please check your server configuration to make sure you are allowed to change PHP include_path.',array('{alias}'=>$importAlias)));
+			if ($importAlias!='')
+				return self::$_imports[$alias]=$path;
+		}
+	}
+
+	/**
 	 * Translates an alias into a file path.
 	 * Note, this method does not ensure the existence of the resulting file path.
 	 * It only checks if the root alias is valid or not.
@@ -646,6 +691,9 @@ class YiiBase
 		'CExceptionEvent' => '/base/CExceptionEvent.php',
 		'CHttpException' => '/base/CHttpException.php',
 		'CModel' => '/base/CModel.php',
+		'CModelCollection' => '/base/CModelCollection.php',
+		'CModelView' => '/base/CModelView.php',
+		'CRelationModelCollection' => '/base/CRelationModelCollection.php',
 		'CModelBehavior' => '/base/CModelBehavior.php',
 		'CModelEvent' => '/base/CModelEvent.php',
 		'CModule' => '/base/CModule.php',
@@ -680,6 +728,10 @@ class YiiBase
 		'CStackIterator' => '/collections/CStackIterator.php',
 		'CTypedList' => '/collections/CTypedList.php',
 		'CTypedMap' => '/collections/CTypedMap.php',
+		'CBaseArrayModifyRecordModelCollection' => '/collections/model/CBaseArrayModifyRecordModelCollection.php',
+		'CBaseIDArrayModifyRecordModelCollection' => '/collections/model/CBaseIDArrayModifyRecordModelCollection.php',
+		'CIDArrayModifyRecordModelCollection' => '/collections/model/CIDArrayModifyRecordModelCollection.php',
+		'CManyManySaveModelCollection' => '/collections/model/CManyManySaveModelCollection.php',
 		'CConsoleApplication' => '/console/CConsoleApplication.php',
 		'CConsoleCommand' => '/console/CConsoleCommand.php',
 		'CConsoleCommandRunner' => '/console/CConsoleCommandRunner.php',
@@ -694,12 +746,14 @@ class YiiBase
 		'CDbTransaction' => '/db/CDbTransaction.php',
 		'CActiveFinder' => '/db/ar/CActiveFinder.php',
 		'CActiveRecord' => '/db/ar/CActiveRecord.php',
+		'CActiveDataReader' => '/db/ar/CActiveDataReader.php',
 		'CActiveRecordBehavior' => '/db/ar/CActiveRecordBehavior.php',
 		'CDbColumnSchema' => '/db/schema/CDbColumnSchema.php',
 		'CDbCommandBuilder' => '/db/schema/CDbCommandBuilder.php',
 		'CDbCriteria' => '/db/schema/CDbCriteria.php',
 		'CDbExpression' => '/db/schema/CDbExpression.php',
 		'CDbSchema' => '/db/schema/CDbSchema.php',
+		'CDbFormatter' => '/db/schema/CDbFormatter.php',
 		'CDbTableSchema' => '/db/schema/CDbTableSchema.php',
 		'CMssqlColumnSchema' => '/db/schema/mssql/CMssqlColumnSchema.php',
 		'CMssqlCommandBuilder' => '/db/schema/mssql/CMssqlCommandBuilder.php',
@@ -707,6 +761,7 @@ class YiiBase
 		'CMssqlSchema' => '/db/schema/mssql/CMssqlSchema.php',
 		'CMssqlTableSchema' => '/db/schema/mssql/CMssqlTableSchema.php',
 		'CMysqlColumnSchema' => '/db/schema/mysql/CMysqlColumnSchema.php',
+		'CMysqlFormatter' => '/db/schema/mysql/CMysqlFormatter.php',
 		'CMysqlSchema' => '/db/schema/mysql/CMysqlSchema.php',
 		'CMysqlTableSchema' => '/db/schema/mysql/CMysqlTableSchema.php',
 		'COciColumnSchema' => '/db/schema/oci/COciColumnSchema.php',
@@ -731,6 +786,7 @@ class YiiBase
 		'CGettextMoFile' => '/i18n/gettext/CGettextMoFile.php',
 		'CGettextPoFile' => '/i18n/gettext/CGettextPoFile.php',
 		'CDbLogRoute' => '/logging/CDbLogRoute.php',
+		'CConsoleLogRoute' => '/logging/CConsoleLogRoute.php',
 		'CEmailLogRoute' => '/logging/CEmailLogRoute.php',
 		'CFileLogRoute' => '/logging/CFileLogRoute.php',
 		'CLogFilter' => '/logging/CLogFilter.php',
@@ -740,8 +796,12 @@ class YiiBase
 		'CProfileLogRoute' => '/logging/CProfileLogRoute.php',
 		'CWebLogRoute' => '/logging/CWebLogRoute.php',
 		'CDateTimeParser' => '/utils/CDateTimeParser.php',
+		'CNumberParser' => '/utils/CNumberParser.php',
 		'CFileHelper' => '/utils/CFileHelper.php',
+		'CFunctionHelper' => '/utils/CFunctionHelper.php',
 		'CFormatter' => '/utils/CFormatter.php',
+		'CFormatterType' => '/utils/CFormatterType.php',
+		'CLocaleFormatter' => '/utils/CLocaleFormatter.php',
 		'CMarkdownParser' => '/utils/CMarkdownParser.php',
 		'CPropertyValue' => '/utils/CPropertyValue.php',
 		'CTimestamp' => '/utils/CTimestamp.php',
@@ -757,6 +817,7 @@ class YiiBase
 		'CFilterValidator' => '/validators/CFilterValidator.php',
 		'CInlineValidator' => '/validators/CInlineValidator.php',
 		'CNumberValidator' => '/validators/CNumberValidator.php',
+		'CFormatParseValidator' => '/validators/CFormatParseValidator.php',
 		'CRangeValidator' => '/validators/CRangeValidator.php',
 		'CRegularExpressionValidator' => '/validators/CRegularExpressionValidator.php',
 		'CRequiredValidator' => '/validators/CRequiredValidator.php',

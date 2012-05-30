@@ -345,6 +345,12 @@ abstract class CModule extends CComponent
 			}
 			if(!isset($module['class']))
 			{
+                if(!preg_match('/^\w+$/',$id))
+                {
+                    Yii::log('Invalid module id "'.$id.'"',CLogger::LEVEL_ERROR,'system.CModule');
+                    continue;
+                }
+
 				Yii::setPathOfAlias($id,$this->getModulePath().DIRECTORY_SEPARATOR.$id);
 				$module['class']=$id.'.'.ucfirst($id).'Module';
 			}

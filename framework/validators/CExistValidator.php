@@ -50,6 +50,10 @@ class CExistValidator extends CValidator
 	 */
 	public $criteria=array();
 	/**
+	 * @var array model scopes to call of {@see CActiveRecord::callScopes}.
+	 */
+	public $scopes;
+	/**
 	 * @var boolean whether the attribute value can be null or empty. Defaults to true,
 	 * meaning that if the attribute is empty, it is considered valid.
 	 */
@@ -82,7 +86,7 @@ class CExistValidator extends CValidator
 			$criteria->mergeWith($this->criteria);
 		}
 
-		if(!$finder->exists($criteria))
+		if(!$finder->callScopes($this->scopes)->exists($criteria))
 		{
 			$message=$this->message!==null?$this->message:Yii::t('yii','{attribute} "{value}" is invalid.');
 			$this->addError($object,$attribute,$message,array('{value}'=>CHtml::encode($value)));

@@ -53,6 +53,7 @@ class CWebModule extends CModule
 	private $_controllerPath;
 	private $_viewPath;
 	private $_layoutPath;
+    private $_theme;
 
 
 	/**
@@ -194,4 +195,15 @@ class CWebModule extends CModule
 			$parent=Yii::app();
 		$parent->afterControllerAction($controller,$action);
 	}
+
+    public function getTheme()
+    {
+        return $this->_theme;
+    }
+
+    public function setTheme($value)
+    {
+        $this->_theme = $value;
+    }
+
 }

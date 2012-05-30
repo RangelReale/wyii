@@ -90,12 +90,21 @@ class CPhpMessageSource extends CMessageSource
 	{
 		if(!isset($this->_files[$category][$language]))
 		{
-			if(($pos=strpos($category,'.'))!==false)
+			if(($pos=strrpos($category,'.'))!==false)
 			{
 				$moduleClass=substr($category,0,$pos);
 				$moduleCategory=substr($category,$pos+1);
-				$class=new ReflectionClass($moduleClass);
-				$this->_files[$category][$language]=dirname($class->getFileName()).DIRECTORY_SEPARATOR.'messages'.DIRECTORY_SEPARATOR.$language.DIRECTORY_SEPARATOR.$moduleCategory.'.php';
+
+                // check if is alias
+                if (($moduleAlias = Yii::getPathOfAlias($moduleClass)) !== false)
+                {
+                    $this->_files[$category][$language]=$moduleAlias.DIRECTORY_SEPARATOR.'messages'.DIRECTORY_SEPARATOR.$language.DIRECTORY_SEPARATOR.$moduleCategory.'.php';
+                }
+                else
+                {
+                    $class=new ReflectionClass($moduleClass);
+                    $this->_files[$category][$language]=dirname($class->getFileName()).DIRECTORY_SEPARATOR.'messages'.DIRECTORY_SEPARATOR.$language.DIRECTORY_SEPARATOR.$moduleCategory.'.php';
+                }
 			}
 			else
 				$this->_files[$category][$language]=$this->basePath.DIRECTORY_SEPARATOR.$language.DIRECTORY_SEPARATOR.$category.'.php';

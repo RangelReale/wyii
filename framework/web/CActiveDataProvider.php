@@ -59,6 +59,16 @@ class CActiveDataProvider extends CDataProvider
 	 */
 	public $keyAttribute;
 
+	/**
+	 * @var array model scopes to call of {@see CActiveRecord::callScopes}.
+	 */
+	public $scopes;
+	/**
+	 * @var boolean whether to use a reader to fecth data
+	 */
+	public $useReader = false;
+	
+
 	private $_criteria;
 
 	/**
@@ -146,8 +156,9 @@ class CActiveDataProvider extends CDataProvider
 			$sort->applyOrder($criteria);
 		}
 
+		$method = $this->useReader?'findAllReader':'findAll';
 		$this->model->setDbCriteria($baseCriteria!==null ? clone $baseCriteria : null);
-		$data=$this->model->findAll($criteria);
+		$data=$this->model->callScopes($this->scopes)->$method($criteria);
 		$this->model->setDbCriteria($baseCriteria);  // restore original criteria
 		return $data;
 	}
@@ -176,7 +187,7 @@ class CActiveDataProvider extends CDataProvider
 		$baseCriteria=$this->model->getDbCriteria(false);
 		if($baseCriteria!==null)
 			$baseCriteria=clone $baseCriteria;
-		$count=$this->model->count($this->getCriteria());
+		$count=$this->model->callScopes($this->scopes)->count($this->getCriteria());
 		$this->model->setDbCriteria($baseCriteria);
 		return $count;
 	}

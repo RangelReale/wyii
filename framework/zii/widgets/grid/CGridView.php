@@ -88,6 +88,7 @@ class CGridView extends CBaseListView
 	const FILTER_POS_BODY='body';
 
 	private $_formatter;
+    private $_inBody = false;
 	/**
 	 * @var array grid column configuration. Each array element represents the configuration
 	 * for one particular grid column which can be either a string or an array.
@@ -118,6 +119,13 @@ class CGridView extends CBaseListView
 	 * @see rowCssClass
 	 */
 	public $rowCssClassExpression;
+	/**
+	 * @var string a PHP expression that is evaluated for every table body row and whose result
+	 * is used as the ID for the row. In this expression, the variable <code>$row</code>
+	 * stands for the row number (zero-based), <code>$data</code> is the data model associated with
+	 * the row, and <code>$this</code> is the grid object.
+	 */
+	public $rowIdExpression;
 	/**
 	 * @var boolean whether to display the table even when there is no data. Defaults to true.
 	 * The {@link emptyText} will be displayed to indicate there is no data.
@@ -260,7 +268,7 @@ class CGridView extends CBaseListView
 	 */
 	public $hideHeader=false;
 
-    /**
+	/**
      * @var boolean whether to leverage the {@link https://developer.mozilla.org/en/DOM/window.history DOM history object}.  Set this property to true
      * to persist state of grid across page revisits.  Note, there are two limitations for this feature: 
      * - this feature is only compatible with browsers that support HTML5.  
@@ -426,7 +434,8 @@ class CGridView extends CBaseListView
 	{
 		if(!$this->hideHeader)
 		{
-			echo "<thead>\n";
+            if (!$this->_inBody)
+                echo "<thead>\n";
 
 			if($this->filterPosition===self::FILTER_POS_HEADER)
 				$this->renderFilter();
@@ -439,7 +448,8 @@ class CGridView extends CBaseListView
 			if($this->filterPosition===self::FILTER_POS_BODY)
 				$this->renderFilter();
 
-			echo "</thead>\n";
+            if (!$this->_inBody)
+                echo "</thead>\n";
 		}
 		else if($this->filter!==null && ($this->filterPosition===self::FILTER_POS_HEADER || $this->filterPosition===self::FILTER_POS_BODY))
 		{
@@ -492,6 +502,8 @@ class CGridView extends CBaseListView
 	 */
 	public function renderTableBody()
 	{
+        $this->_inBody = true;
+
 		$data=$this->dataProvider->getData();
 		$n=count($data);
 		echo "<tbody>\n";
@@ -503,7 +515,7 @@ class CGridView extends CBaseListView
 		}
 		else
 		{
-			echo '<tr><td colspan="'.count($this->columns).'" class="empty">';
+			echo '<tr><td colspan="'.count($this->columns).'">';
 			$this->renderEmptyText();
 			echo "</td></tr>\n";
 		}
@@ -516,15 +528,21 @@ class CGridView extends CBaseListView
 	 */
 	public function renderTableRow($row)
 	{
+		$rowid='';
+		if($this->rowIdExpression!==null)
+		{
+			$data=$this->dataProvider->data[$row];
+			$rowid=' id="'.$this->evaluateExpression($this->rowIdExpression,array('row'=>$row,'data'=>$data)).'"';
+		}	
 		if($this->rowCssClassExpression!==null)
 		{
 			$data=$this->dataProvider->data[$row];
-			echo '<tr class="'.$this->evaluateExpression($this->rowCssClassExpression,array('row'=>$row,'data'=>$data)).'">';
+			echo '<tr'.$rowid.' class="'.$this->evaluateExpression($this->rowCssClassExpression,array('row'=>$row,'data'=>$data)).'">';
 		}
 		else if(is_array($this->rowCssClass) && ($n=count($this->rowCssClass))>0)
-			echo '<tr class="'.$this->rowCssClass[$row%$n].'">';
+			echo '<tr'.$rowid.' class="'.$this->rowCssClass[$row%$n].'">';
 		else
-			echo '<tr>';
+			echo '<tr'.$rowid.'>';
 		foreach($this->columns as $column)
 			$column->renderDataCell($row);
 		echo "</tr>\n";

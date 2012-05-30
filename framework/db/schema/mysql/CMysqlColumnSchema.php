@@ -26,7 +26,7 @@ class CMysqlColumnSchema extends CDbColumnSchema
 	{
 		if(strncmp($dbType,'enum',4)===0)
 			$this->type='string';
-		else if(strpos($dbType,'float')!==false || strpos($dbType,'double')!==false)
+		else if(strpos($dbType,'float')!==false || strpos($dbType,'double')!==false || strpos($dbType,'decimal')!==false || strpos($dbType,'numeric')!==false)
 			$this->type='double';
 		else if(strpos($dbType,'bool')!==false)
 			$this->type='boolean';
@@ -68,5 +68,50 @@ class CMysqlColumnSchema extends CDbColumnSchema
 		}
 		else
 			parent::extractLimit($dbType);
+	}
+
+	public function valueFromDb($value)
+	{
+		$value=parent::valueFromDb($value);
+		if($value===null || $value instanceof CDbExpression)
+			return $value;
+		if($value==='')
+			return $this->valueNullable() ? null : '';
+		switch($this->dbType)
+		{
+			case 'date':
+			case 'time':
+			case 'datetime': 
+			case 'timestamp': 
+				return CDateTimeParser::parse($value, 'yyyy-MM-dd hh:mm:ss');
+			default: return $value;
+		}
+	}
+
+	public function valueToDb($value)
+	{
+		$value=parent::valueToDb($value);
+		if($value===null || $value instanceof CDbExpression)
+			return $value;
+		if($value==='')
+			return $this->valueNullable() ? null : '';
+		switch($this->dbType)
+		{
+			case 'date':
+			case 'time':
+			case 'datetime': 
+			case 'timestamp': 
+				return date('Y-m-d H:i:s', $value);
+			default: return $value;
+		}
+	}
+	
+	public function valueNullable()
+	{
+		return 
+			$this->type!=='string' ||
+			($this->dbType=='date' ||
+			$this->dbType=='time' ||
+			$this->dbType=='datetime');
 	}
 }

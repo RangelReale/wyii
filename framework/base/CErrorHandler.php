@@ -170,6 +170,7 @@ class CErrorHandler extends CApplicationComponent
 				'type'=>get_class($exception),
 				'errorCode'=>$exception->getCode(),
 				'message'=>$exception->getMessage(),
+                'messageLine'=>explode("\n", $exception->getMessage(), 2),
 				'file'=>$fileName,
 				'line'=>$errorLine,
 				'trace'=>$exception->getTraceAsString(),
@@ -177,7 +178,7 @@ class CErrorHandler extends CApplicationComponent
 			);
 
 			if(!headers_sent())
-				header("HTTP/1.0 {$data['code']} ".$this->getHttpHeader($data['code'], get_class($exception)));
+				header("HTTP/1.0 {$data['code']} ".get_class($exception).' '.(count($data['messageLine'])>0?$data['messageLine'][0]:''));
 
 			if($exception instanceof CHttpException || !YII_DEBUG)
 				$this->render('error',$data);

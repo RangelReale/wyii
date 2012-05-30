@@ -22,7 +22,7 @@
  * Controller action:
  * <pre>
  * function actionIndex(){
- *     $criteria=new CDbCriteria();
+ *     $criteria = new CDbCriteria();
  *     $count=Article::model()->count($criteria);
  *     $pages=new CPagination($count);
  *

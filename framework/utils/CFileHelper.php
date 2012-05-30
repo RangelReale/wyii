@@ -258,4 +258,73 @@ class CFileHelper
 		}
 		return null;
 	}
+
+	/**
+	 * Determines the file base name (without extension).
+	 * @param string the file name.
+	 * @return string the file base name.
+	 */
+	public static function getBaseName($file)
+	{
+		if(($pos=strrpos($file,'.'))!==false)
+			return utf8_encode(strtolower(substr(utf8_decode ($file),0,$pos)));
+		return '';
+	}
+
+	/**
+	 * Determines the file name (with extension).
+	 * @param string the file name.
+	 * @return string the file base name.
+	 */
+	public static function getFileName($file)
+	{
+        return basename($file);
+	}
+
+	
+	public static function deleteDirectoryRecursive($directory, $empty = false) 
+	{
+		if(substr($directory,-1) == "/") 
+		{
+			$directory = substr($directory,0,-1);
+		}
+
+		if(!file_exists($directory) || !is_dir($directory)) 
+		{
+			return false;
+		} 
+		elseif(!is_readable($directory)) 
+		{
+			return false;
+		} 
+		else 
+		{
+			$directoryHandle = opendir($directory);
+
+			while ($contents = readdir($directoryHandle)) 
+			{
+				if($contents != '.' && $contents != '..') {
+					$path = $directory . DIRECTORY_SEPARATOR . $contents;
+
+					if(is_dir($path)) {
+						$this->deleteDirectoryRecursive($path);
+					} else {
+						unlink($path);
+					}
+				}
+			}
+
+			closedir($directoryHandle);
+
+			if($empty == false) 
+			{
+				if(!rmdir($directory)) 
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+	} 	
 }

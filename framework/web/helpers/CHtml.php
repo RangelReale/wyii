@@ -123,6 +123,41 @@ class CHtml
 		return $d;
 	}
 
+	/*
+	 * Encode a string in SEO format, removing spaces and accented characters.
+	 * @param string the string to encode
+	 * @return string encoded string
+	 */
+	public static function encodeSEOString($string)
+	{
+		$string = preg_replace("`\[.*\]`U","",$string);
+		$string = preg_replace('`&(amp;)?#?[a-z0-9]+;`i','-',$string);
+		$string = htmlentities($string, ENT_COMPAT, 'utf-8');
+		$string = preg_replace( "`&([a-z])(acute|uml|circ|grave|ring|cedil|slash|tilde|caron|lig|quot|rsquo);`i","\\1", $string );
+		$string = preg_replace( array("`[^a-z0-9]`i","`[-]+`") , "-", $string);
+		return strtolower(trim($string, '-'));
+		
+	}
+
+    public static function decodeSmartQuotes($string)
+    {
+        static $quotes = array(
+            "\xC2\xAB"     => '"', // « (U+00AB) in UTF-8
+            "\xC2\xBB"     => '"', // » (U+00BB) in UTF-8
+            "\xE2\x80\x98" => "'", // ‘ (U+2018) in UTF-8
+            "\xE2\x80\x99" => "'", // ’ (U+2019) in UTF-8
+            "\xE2\x80\x9A" => "'", // ‚ (U+201A) in UTF-8
+            "\xE2\x80\x9B" => "'", // ? (U+201B) in UTF-8
+            "\xE2\x80\x9C" => '"', // “ (U+201C) in UTF-8
+            "\xE2\x80\x9D" => '"', // ” (U+201D) in UTF-8
+            "\xE2\x80\x9E" => '"', // „ (U+201E) in UTF-8
+            "\xE2\x80\x9F" => '"', // ? (U+201F) in UTF-8
+            "\xE2\x80\xB9" => "'", // ‹ (U+2039) in UTF-8
+            "\xE2\x80\xBA" => "'", // › (U+203A) in UTF-8
+        );
+        return strtr($string, $quotes);
+    }
+
 	/**
 	 * Generates an HTML element.
 	 * @param string $tag the tag name
@@ -935,6 +970,7 @@ EOD;
 	{
 		$template=isset($htmlOptions['template'])?$htmlOptions['template']:'{input} {label}';
 		$separator=isset($htmlOptions['separator'])?$htmlOptions['separator']:"<br/>\n";
+        $useLabel=isset($htmlOptions['uselabel'])?$htmlOptions['uselabel']:true;
 		unset($htmlOptions['template'],$htmlOptions['separator']);
 
 		$labelOptions=isset($htmlOptions['labelOptions'])?$htmlOptions['labelOptions']:array();
@@ -949,7 +985,8 @@ EOD;
 			$htmlOptions['value']=$value;
 			$htmlOptions['id']=$baseID.'_'.$id++;
 			$option=self::radioButton($name,$checked,$htmlOptions);
-			$label=self::label($label,$htmlOptions['id'],$labelOptions);
+            if ($useLabel)
+                $label=self::label($label,$htmlOptions['id'],$labelOptions);
 			$items[]=strtr($template,array('{input}'=>$option,'{label}'=>$label));
 		}
 		return self::tag('span',array('id'=>$baseID),implode($separator,$items));
@@ -1102,6 +1139,13 @@ EOD;
 		return $url==='' ? Yii::app()->getRequest()->getUrl() : $url;
 	}
 
+    public static function translateUrl($value)
+    {
+        if(strpos($value,'url:')===0)
+            return Yii::app()->baseUrl.substr($value,4);
+        return $value;
+    }
+
 	/**
 	 * Generates an input HTML tag.
 	 * This method generates an input HTML tag based on the given input name and value.
@@ -1204,7 +1248,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('text',$model,$attribute,$htmlOptions);
 	}
-
+	
 	/**
 	 * Generates a url field input for a model attribute.
 	 * If the attribute has input error, the input field's CSS class will
@@ -1224,7 +1268,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('url',$model,$attribute,$htmlOptions);
 	}
-
+	
 	/**
 	 * Generates an email field input for a model attribute.
 	 * If the attribute has input error, the input field's CSS class will
@@ -1244,7 +1288,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('email',$model,$attribute,$htmlOptions);
 	}
-
+	
 	/**
 	 * Generates a number field input for a model attribute.
 	 * If the attribute has input error, the input field's CSS class will
@@ -1264,7 +1308,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('number',$model,$attribute,$htmlOptions);
 	}
-
+	
 	/**
 	 * Generates a range field input for a model attribute.
 	 * If the attribute has input error, the input field's CSS class will
@@ -1284,7 +1328,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('range',$model,$attribute,$htmlOptions);
 	}
-
+	
 	/**
 	 * Generates a date field input for a model attribute.
 	 * If the attribute has input error, the input field's CSS class will
@@ -1303,8 +1347,8 @@ EOD;
 		self::resolveNameID($model,$attribute,$htmlOptions);
 		self::clientChange('change',$htmlOptions);
 		return self::activeInputField('date',$model,$attribute,$htmlOptions);
-	}
-
+	}	
+	
 
 	/**
 	 * Generates a hidden input for a model attribute.
@@ -1356,7 +1400,7 @@ EOD;
 		self::clientChange('change',$htmlOptions);
 		if($model->hasErrors($attribute))
 			self::addErrorCss($htmlOptions);
-		$text=self::resolveValue($model,$attribute);
+		$text=self::resolveValue($model,$attribute,$htmlOptions);
 		return self::tag('textarea',$htmlOptions,isset($htmlOptions['encode']) && !$htmlOptions['encode'] ? $text : self::encode($text));
 	}
 
@@ -1403,7 +1447,9 @@ EOD;
 		self::resolveNameID($model,$attribute,$htmlOptions);
 		if(!isset($htmlOptions['value']))
 			$htmlOptions['value']=1;
-		if(!isset($htmlOptions['checked']) && self::resolveValue($model,$attribute)==$htmlOptions['value'])
+		else
+			$htmlOptions['id'].='_'.$htmlOptions['value'];
+		if(!isset($htmlOptions['checked']) && self::resolveValue($model,$attribute,$htmlOptions)==$htmlOptions['value'])
 			$htmlOptions['checked']='checked';
 		self::clientChange('click',$htmlOptions);
 
@@ -1445,7 +1491,9 @@ EOD;
 		self::resolveNameID($model,$attribute,$htmlOptions);
 		if(!isset($htmlOptions['value']))
 			$htmlOptions['value']=1;
-		if(!isset($htmlOptions['checked']) && self::resolveValue($model,$attribute)==$htmlOptions['value'])
+		else
+			$htmlOptions['id'].='_'.$htmlOptions['value'];
+		if(!isset($htmlOptions['checked']) && self::resolveValue($model,$attribute,$htmlOptions)==$htmlOptions['value'])
 			$htmlOptions['checked']='checked';
 		self::clientChange('click',$htmlOptions);
 
@@ -1500,7 +1548,7 @@ EOD;
 	public static function activeDropDownList($model,$attribute,$data,$htmlOptions=array())
 	{
 		self::resolveNameID($model,$attribute,$htmlOptions);
-		$selection=self::resolveValue($model,$attribute);
+		$selection=self::resolveValue($model,$attribute,$htmlOptions);
 		$options="\n".self::listOptions($selection,$data,$htmlOptions);
 		self::clientChange('change',$htmlOptions);
 		if($model->hasErrors($attribute))
@@ -1593,7 +1641,7 @@ EOD;
 	public static function activeCheckBoxList($model,$attribute,$data,$htmlOptions=array())
 	{
 		self::resolveNameID($model,$attribute,$htmlOptions);
-		$selection=self::resolveValue($model,$attribute);
+		$selection=self::resolveValue($model,$attribute,$htmlOptions);
 		if($model->hasErrors($attribute))
 			self::addErrorCss($htmlOptions);
 		$name=$htmlOptions['name'];
@@ -1641,7 +1689,7 @@ EOD;
 	public static function activeRadioButtonList($model,$attribute,$data,$htmlOptions=array())
 	{
 		self::resolveNameID($model,$attribute,$htmlOptions);
-		$selection=self::resolveValue($model,$attribute);
+		$selection=self::resolveValue($model,$attribute,$htmlOptions);
 		if($model->hasErrors($attribute))
 			self::addErrorCss($htmlOptions);
 		$name=$htmlOptions['name'];
@@ -1714,6 +1762,34 @@ EOD;
 	}
 
 	/**
+	 * Returns an error description for one or several models.
+	 * @param mixed the models whose input errors are to be displayed. This can be either
+	 * a single model or an array of models.
+	 * @param string a piece of HTML code that appears in front of each error
+	 * @param string a piece of HTML code that appears at the end of each error
+	 * @return string the error description. Empty if no errors are found.
+	 * @see CModel::getErrors
+	 */
+	public static function errorDescription($model,$prepend='',$append='<br>')
+	{
+		$content='';
+		if(!is_array($model))
+			$model=array($model);
+		foreach($model as $m)
+		{
+			foreach($m->getErrors() as $errors)
+			{
+				foreach($errors as $error)
+				{
+					if($error!='')
+						$content.=$prepend.$error.$append;
+				}
+			}
+		}
+		return $content;
+	}
+
+	/**
 	 * Displays the first validation error for a model attribute.
 	 * @param CModel $model the data model
 	 * @param string $attribute the attribute name
@@ -1750,29 +1826,45 @@ EOD;
 	 * @param string $groupField the attribute name for list option group names. If empty, no group will be generated.
 	 * @return array the list data that can be used in {@link dropDownList}, {@link listBox}, etc.
 	 */
-	public static function listData($models,$valueField,$textField,$groupField='')
+	public static function listData($models,$valueField,$textField,$groupField='',$options=array())
 	{
+		$valueExpression=isset($options['valueExpression']) && $options['valueExpression'];
+		$textExpression=isset($options['textExpression']) && $options['textExpression'];
+		$groupExpression=isset($options['groupExpression']) && $options['groupExpression'];
+	
 		$listData=array();
 		if($groupField==='')
 		{
 			foreach($models as $model)
 			{
-				$value=self::value($model,$valueField);
-				$text=self::value($model,$textField);
-				$listData[$value]=$text;
+				if (!$model instanceof CModel || $model->isActive())
+				{
+					$value=self::expressionValue($model,$valueField,$valueExpression);
+					$text=self::expressionValue($model,$textField,$textExpression);
+					$listData[$value]=$text;
+				}
 			}
 		}
 		else
 		{
 			foreach($models as $model)
 			{
-				$group=self::value($model,$groupField);
-				$value=self::value($model,$valueField);
-				$text=self::value($model,$textField);
-				$listData[$group][$value]=$text;
+				if (!$model instanceof CModel || $model->isActive())
+				{
+					$group=self::expressionValue($model,$groupField,$groupExpression);
+					$value=self::expressionValue($model,$valueField,$valueExpression);
+					$text=self::expressionValue($model,$textField,$textExpression);
+					$listData[$group][$value]=$text;
+				}
 			}
 		}
 		return $listData;
+	}
+
+	public static function expressionValue($model,$expression,$isExpression=true)
+	{
+		if (!$isExpression) return self::value($model,$expression);
+		return $model->evaluateExpression($expression,array('model'=>$model));
 	}
 
 	/**
@@ -1872,7 +1964,13 @@ EOD;
 		if($type==='file')
 			unset($htmlOptions['value']);
 		else if(!isset($htmlOptions['value']))
-			$htmlOptions['value']=self::resolveValue($model,$attribute);
+			$htmlOptions['value']=self::resolveValue($model,$attribute,$htmlOptions);
+		if (isset($htmlOptions['isList']))
+		{
+			if(isset($htmlOptions['name']) && $htmlOptions['isList'])
+				$htmlOptions['name'].='[]';
+			unset($htmlOptions['isList']);
+		}
 		if($model->hasErrors($attribute))
 			self::addErrorCss($htmlOptions);
 		return self::tag('input',$htmlOptions);
@@ -2090,6 +2188,7 @@ EOD;
 	 */
 	public static function resolveName($model,&$attribute)
 	{
+/*
 		if(($pos=strpos($attribute,'['))!==false)
 		{
 			if($pos!==0)  // e.g. name[a][b]
@@ -2108,6 +2207,17 @@ EOD;
 			}
 		}
 		return get_class($model).'['.$attribute.']';
+*/
+		
+		if('['===$attribute[0])
+			list($i, $attribute, $index)=array(strtok($attribute, '[]'), strtok('['), strtok(']'));
+		else
+			list($attribute, $index)=array(strtok($attribute, '['), strtok(']'));
+		$attr='';
+		foreach(explode('.',$attribute) as $name)
+			$attr.='['.$name.']';
+
+		return get_class($model).(isset($i) ? '['.$i.']' : '').$attr.(false!==$index ? '['.$index.']' : '');
 	}
 
 	/**
@@ -2119,11 +2229,16 @@ EOD;
 	 * @return mixed the attribute value
 	 * @since 1.1.3
 	 */
-	public static function resolveValue($model,$attribute)
+	public static function resolveValue($model,$attribute,&$options)
 	{
+		$model = $model->resolveAttribute($attribute);
+
+		$attributeItem=isset($options['attributeItem'])?$options['attributeItem']:null;
+		unset($options['attributeItem']);
+
 		if(($pos=strpos($attribute,'['))!==false)
 		{
-			if($pos===0) // [a]name[b][c], should ignore [a]
+			if($pos===0)  // [a]name[b][c], should ignore [a]
 			{
 				if(preg_match('/\](.*)/',$attribute,$matches))
 					$attribute=$matches[1];
@@ -2141,7 +2256,21 @@ EOD;
 			}
 			return $value;
 		}
-		else
+		else if((is_array($model->$attribute) || $model->$attribute instanceof ArrayAccess) && isset($attributeItem))
+		{
+			$selection=array();
+			foreach ($model->$attribute as $a)
+			{
+				if (!$a instanceof CModel || $a->isActive())
+				{
+					if (is_scalar($a))
+						$selection[]=$a;
+					else
+						$selection[]=$a->$attributeItem;
+				}
+			}
+			return $selection;
+		} else
 			return $model->$attribute;
 	}
 
@@ -2192,17 +2321,42 @@ EOD;
 		else
 			$raw=false;
 
-		foreach($htmlOptions as $name=>$value)
+		if($raw)
 		{
-			if(isset($specialAttributes[$name]))
+			foreach($htmlOptions as $name=>$value)
 			{
-				if($value)
-					$html .= ' ' . $name . '="' . $name . '"';
+				if(isset($specialAttributes[$name]))
+				{
+					if($value)
+						$html .= ' ' . $name . '="' . $name . '"';
+				}
+				else if($value!==null)
+					$html .= ' ' . $name . '="' . $value . '"';
 			}
-			else if($value!==null)
-				$html .= ' ' . $name . '="' . ($raw ? $value : self::encode($value)) . '"';
 		}
-
+		else
+		{
+			foreach($htmlOptions as $name=>$value)
+			{
+				if(isset($specialAttributes[$name]))
+				{
+					if($value)
+						$html .= ' ' . $name . '="' . $name . '"';
+				}
+				else if($value!==null)
+					$html .= ' ' . $name . '="' . self::encode($value) . '"';
+			}
+		}
 		return $html;
 	}
+
+    public static function cleanHTML($html) {
+        $html = preg_replace("/<(\/)?(font|span|del|ins)[^>]*>/","",$html);
+
+        $html = preg_replace("/<([^>]*)(class|lang|style|size|face)=(\"[^\"]*\"|'[^']*'|[^>]+)([^>]*)>/i","<\\1>",$html);
+        $html = preg_replace("/<([^>]*)(class|lang|style|size|face)=(\"[^\"]*\"|'[^']*'|[^>]+)([^>]*)>/i","<\\1>",$html);
+
+        return $html;
+    }
+
 }

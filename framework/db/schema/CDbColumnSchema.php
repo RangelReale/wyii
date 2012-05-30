@@ -81,7 +81,7 @@ class CDbColumnSchema extends CComponent
 		$this->extractType($dbType);
 		$this->extractLimit($dbType);
 		if($defaultValue!==null)
-			$this->extractDefault($defaultValue);
+			$this->extractDefault($this->valueFromDb($defaultValue));
 	}
 
 	/**
@@ -144,5 +144,15 @@ class CDbColumnSchema extends CComponent
 			case 'double':
 			default: return $value;
 		}
+	}
+	
+	public function valueFromDb($value)
+	{
+		return $value;
+	}
+
+	public function valueToDb($value)
+	{
+		return $value;
 	}
 }

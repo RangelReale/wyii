@@ -94,6 +94,8 @@ abstract class CApplication extends CModule
 
 	private $_id;
 	private $_basePath;
+    private $_basePathUrl;
+    private $_autoBasePathUrl;
 	private $_runtimePath;
 	private $_extensionPath;
 	private $_globalState;
@@ -243,8 +245,29 @@ abstract class CApplication extends CModule
 		if(($this->_basePath=realpath($path))===false || !is_dir($this->_basePath))
 			throw new CException(Yii::t('yii','Application base path "{path}" is not a valid directory.',
 				array('{path}'=>$path)));
+        $this->_autoBasePathUrl = null;
 	}
 
+    public function getBasePathUrl()
+    {
+        if (isset($this->_basePathUrl))
+            return $this->_basePathUrl;
+        if (!isset($this->_autoBasePathUrl))
+        {
+            if(($this->_autoBasePathUrl=realpath($this->getBasePath().DIRECTORY_SEPARATOR.'..'))===false || !is_dir($this->_autoBasePathUrl))
+                throw new CException(Yii::t('yii','Application auto base url path "{path}" is not a valid directory.',
+                    array('{path}'=>$this->getBasePath().DIRECTORY_SEPARATOR.'..')));
+        }
+        return $this->_autoBasePathUrl;
+    }
+    
+    public function setBasePathUrl($path)
+    {
+		if(($this->_basePathUrl=realpath($path))===false || !is_dir($this->_basePathUrl))
+			throw new CException(Yii::t('yii','Application base url path "{path}" is not a valid directory.',
+				array('{path}'=>$path)));
+    }
+    
 	/**
 	 * Returns the directory that stores runtime files.
 	 * @return string the directory that stores runtime files. Defaults to 'protected/runtime'.
@@ -700,6 +723,8 @@ abstract class CApplication extends CModule
 		if(isset($_SERVER['HTTP_REFERER']))
 			$message.="\nHTTP_REFERER=".$_SERVER['HTTP_REFERER'];
 		$message.="\n---";
+		if(isset($_SERVER['HTTP_REFERER']))
+			$message.="\nHTTP_REFERER=".$_SERVER['HTTP_REFERER'];
 		Yii::log($message,CLogger::LEVEL_ERROR,$category);
 
 		try

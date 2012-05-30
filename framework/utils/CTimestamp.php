@@ -188,6 +188,7 @@ class CTimestamp
 	 */
 	public static function isValidDate($y,$m,$d)
 	{
+		if ($y==0 && $m==0 && $d==0) return true;
 		return checkdate($m, $d, $y);
 	}
 
@@ -374,4 +375,23 @@ class CTimestamp
 			return $is_gmt? @gmmktime($hr,$min,$sec): @mktime($hr,$min,$sec);
 		return $is_gmt ? @gmmktime($hr,$min,$sec,$mon,$day,$year) : @mktime($hr,$min,$sec,$mon,$day,$year);
 	}
+    
+    /**
+     * Generates a timestamp offset string in the format [+-]hh:mmm
+     * @param type $timezone
+     * @return string 
+     */
+    public static function getTimezoneOffset($timezone)
+    {
+        $t = new DateTimeZone($timezone);
+        $offset = $t->getOffset(new DateTime()); // Offset in seconds to UTC 
+        
+        $offsetHours = round(abs($offset)/3600); 
+        $offsetMinutes = round((abs($offset) - $offsetHours * 3600) / 60); 
+        $offsetString = ($offset < 0 ? '-' : '+') 
+                . ($offsetHours < 10 ? '0' : '') . $offsetHours 
+                . ':' 
+                . ($offsetMinutes < 10 ? '0' : '') . $offsetMinutes;         
+        return $offsetString;
+    }
 }

@@ -36,6 +36,7 @@ abstract class CDbSchema extends CComponent
 	private $_connection;
 	private $_builder;
 	private $_cacheExclude=array();
+	private $_format;
 
 	/**
 	 * Loads the metadata for the specified table.
@@ -43,6 +44,15 @@ abstract class CDbSchema extends CComponent
 	 * @return CDbTableSchema driver dependent table metadata, null if the table does not exist.
 	 */
 	abstract protected function loadTable($name);
+
+	/**
+	 * Creates a format for this schema.
+	 * @return CDbFormatter the formatter class
+	 */
+	public function createFormat()
+	{
+		return new CDbFormatter($this);
+	}
 
 	/**
 	 * Constructor.
@@ -150,6 +160,17 @@ abstract class CDbSchema extends CComponent
 			return $this->_builder;
 		else
 			return $this->_builder=$this->createCommandBuilder();
+	}
+
+	/**
+	 * Gets the formatter for this schema;
+	 * @return CDbFormatter formatter
+	 */
+	public function getFormat()
+	{
+		if ($this->_format===null)
+			$this->_format=$this->createFormat();
+		return $this->_format;
 	}
 
 	/**

@@ -313,8 +313,11 @@ class CWebApplication extends CApplication
 		while(($pos=strpos($route,'/'))!==false)
 		{
 			$id=substr($route,0,$pos);
+/*
+            // check moved to CModule::setModules
 			if(!preg_match('/^\w+$/',$id))
 				return null;
+ */
 			if(!$caseSensitive)
 				$id=strtolower($id);
 			$route=(string)substr($route,$pos+1);

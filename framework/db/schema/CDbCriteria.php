@@ -310,6 +310,21 @@ class CDbCriteria extends CComponent
 		return $this->addCondition($condition,$operator);
 	}
 
+    /**
+     * Builds an IN condition.
+     */
+	public function buildInCondition($column,$values,$in='IN')
+	{
+        $params=array();
+        foreach($values as $value)
+        {
+            $params[]=self::PARAM_PREFIX.self::$paramCount;
+            $this->params[self::PARAM_PREFIX.self::$paramCount++]=$value;
+        }
+        $condition=$column.' '.$in.' ('.implode(', ',$params).')';
+        return $condition;
+	}
+    
 	/**
 	 * Appends a condition for matching the given list of column values.
 	 * The generated condition will be concatenated to the existing {@link condition}

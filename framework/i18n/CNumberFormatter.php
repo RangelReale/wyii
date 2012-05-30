@@ -134,6 +134,15 @@ class CNumberFormatter extends CComponent
 	}
 
 	/**
+	 * Formats a number using the decimal format defined in the locale.
+	 * @param mixed the number to be formatted
+	 * @return string the formatting result.
+	 */
+	public function formatStatistical($value)
+	{
+		return $this->format($this->_locale->getStatisticalFormat(),$value);
+	}
+	/**
 	 * Formats a number based on a format.
 	 * This is the method that does actual number formatting.
 	 * @param array $format format with the following structure:

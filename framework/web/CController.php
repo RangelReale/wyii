@@ -481,9 +481,23 @@ class CController extends CBaseController
 	 */
 	public function missingAction($actionID)
 	{
-		throw new CHttpException(404,Yii::t('yii','The system is unable to find the requested action "{action}".',
-			array('{action}'=>$actionID==''?$this->defaultAction:$actionID)));
+		$event=new CMissingActionEvent($this, $actionID);
+		$this->onMissingAction($event);
+        if (!$event->handled)
+            throw new CHttpException(404,Yii::t('yii','The system is unable to find the requested action "{action}".',
+                array('{action}'=>$actionID==''?$this->defaultAction:$actionID)));
 	}
+
+	/**
+	 * Missing Action event.
+	 * @param CMissingActionEvent the event parameter
+	 * @since 1.0.2
+	 */
+	public function onMissingAction($event)
+	{
+		$this->raiseEvent('onMissingAction',$event);
+	}
+
 
 	/**
 	 * @return CAction the action currently being executed, null if no active action.
@@ -584,7 +598,7 @@ class CController extends CBaseController
 	 */
 	public function getViewFile($viewName)
 	{
-		if(($theme=Yii::app()->getTheme())!==null && ($viewFile=$theme->getViewFile($this,$viewName))!==false)
+		if((($theme=Yii::app()->getTheme())!==null || ($theme=Yii::app()->themeManager->getTheme($this->getModule()!==null?$this->getModule()->theme:null))!==null) && ($viewFile=$theme->getViewFile($this,$viewName))!==false)
 			return $viewFile;
 		$moduleViewPath=$basePath=Yii::app()->getViewPath();
 		if(($module=$this->getModule())!==null)
@@ -635,7 +649,7 @@ class CController extends CBaseController
 	{
 		if($layoutName===false)
 			return false;
-		if(($theme=Yii::app()->getTheme())!==null && ($layoutFile=$theme->getLayoutFile($this,$layoutName))!==false)
+		if((($theme=Yii::app()->getTheme())!==null || ($theme=Yii::app()->themeManager->getTheme($this->getModule()!==null?$this->getModule()->theme:null))!==null) && ($layoutFile=$theme->getLayoutFile($this,$layoutName))!==false)
 			return $layoutFile;
 
 		if(empty($layoutName))
@@ -880,6 +894,22 @@ class CController extends CBaseController
 				array('{controller}'=>get_class($this), '{view}'=>$view)));
 	}
 
+    /**
+     * Renders a data view. No processing or layouting will be done.
+     * @param type $view
+     * @param type $data 
+     */
+    public function renderData($view,$data)
+    {
+		if(($viewFile=$this->getViewFile($view))!==false)
+		{
+			$this->renderInternal($viewFile,$data,false);
+		}
+		else
+			throw new CException(Yii::t('yii','{controller} cannot find the requested view "{view}".',
+				array('{controller}'=>get_class($this), '{view}'=>$view)));
+    }
+    
 	/**
 	 * Renders a named clip with the supplied parameters.
 	 * This is similar to directly accessing the {@link clips} property.
@@ -1228,5 +1258,30 @@ class CController extends CBaseController
 			$data=gzcompress($data);
 		$value=base64_encode($data);
 		$output=str_replace(CHtml::pageStateField(''),CHtml::pageStateField($value),$output);
+	}
+}
+
+/**
+ * CMissingActionEvent represents the parameter for the {@link CController::onMissingAction onMissingAction} event.
+ *
+ * @author Rangel Reale <rreale@edgeit.com.br>
+ * @version $Id$
+ * @package system.i18n
+ * @since 1.3
+ */
+class CMissingActionEvent extends CEvent
+{
+	/**
+	 * @var string action id
+	 */
+	public $actionId;
+
+	/**
+	 * Constructor.
+	 */
+	public function __construct($sender,$actionId)
+	{
+		parent::__construct($sender);
+		$this->actionId=$actionId;
 	}
 }

@@ -283,15 +283,16 @@ class CSort extends CComponent
 		if(($definition=$this->resolveAttribute($attribute))===false)
 			return $label;
 		$directions=$this->getDirections();
-		if(isset($directions[$attribute]))
+        $dattribute=$this->makeAttributeParameter($attribute);
+		if(isset($directions[$dattribute]))
 		{
-			$class=$directions[$attribute] ? 'desc' : 'asc';
+			$class=$directions[$dattribute] ? 'desc' : 'asc';
 			if(isset($htmlOptions['class']))
 				$htmlOptions['class'].=' '.$class;
 			else
 				$htmlOptions['class']=$class;
-			$descending=!$directions[$attribute];
-			unset($directions[$attribute]);
+			$descending=!$directions[$dattribute];
+			unset($directions[$dattribute]);
 		}
 		else if(is_array($definition) && isset($definition['default']))
 			$descending=$definition['default']==='desc';
@@ -396,11 +397,16 @@ class CSort extends CComponent
 	{
 		$sorts=array();
 		foreach($directions as $attribute=>$descending)
-			$sorts[]=$descending ? $attribute.$this->separators[1].$this->descTag : $attribute;
+			$sorts[]=$descending ? $this->makeAttributeParameter($attribute).$this->separators[1].$this->descTag : $this->makeAttributeParameter($attribute);
 		$params=$this->params===null ? $_GET : $this->params;
 		$params[$this->sortVar]=implode($this->separators[0],$sorts);
 		return $controller->createUrl($this->route,$params);
 	}
+
+    public function makeAttributeParameter($attribute)
+    {
+        return str_replace('.', '___', $attribute);
+    }
 
 	/**
 	 * Returns the real definition of an attribute given its name.
@@ -429,7 +435,7 @@ class CSort extends CComponent
 		{
 			if(is_string($name))
 			{
-				if($name===$attribute)
+				if($name===$attribute || $this->makeAttributeParameter($name)===$attribute)
 					return $definition;
 			}
 			else if($definition==='*')

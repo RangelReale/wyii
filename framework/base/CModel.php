@@ -29,9 +29,66 @@
  */
 abstract class CModel extends CComponent implements IteratorAggregate, ArrayAccess
 {
+	private $_parentModel=null;
+	private $_parentAttribute=null;
 	private $_errors=array();	// attribute name => array of errors
 	private $_validators;  		// validators
-	private $_scenario='';  	// scenario
+	private $_scenario=array();  	// scenario
+	private $_alias=null;         // aliases
+
+    
+    public function destroy() 
+    {
+        $this->_parentModel = null;
+        $this->_parentAttribute = null;
+        
+        unset($this);
+    } 
+    
+	/**
+	 * Checks if a property value is null.
+	 * This method overrides the parent implementation by checking
+	 * if the named alias exists.
+	 * @param string the property name or the event name
+	 * @return boolean whether the property value is null
+	 * @since 1.0.1
+	 */
+	public function __isset($name)
+	{
+		if(isset($this->getAlias()->aliases[$name]))
+			return true;
+		else
+			return parent::__isset($name);
+	}
+
+	/**
+	 * PHP getter magic method.
+	 * This method is overridden to process aliases.
+	 * @param string property name
+	 * @return mixed property value
+	 * @see getAttribute
+	 */
+	public function __get($name)
+	{
+		if(isset($this->getAlias()->aliases[$name]))
+			return $this->getAlias()->getValue($name);
+		else
+			return parent::__get($name);
+	}
+
+	/**
+	 * PHP setter magic method.
+	 * This method is overridden to process aliases.
+	 * @param string property name
+	 * @param mixed property value
+	 */
+	public function __set($name,$value)
+	{
+		if(isset($this->getAlias()->aliases[$name]))
+			return $this->getAlias()->setValue($name,$value);
+		else
+			parent::__set($name,$value);
+	}
 
 	/**
 	 * Returns the list of attribute names of the model.
@@ -130,6 +187,166 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	}
 
 	/**
+	 * @return CModelAliases the meta for this AR class.
+	 */
+	public function getAlias()
+	{
+		if($this->_alias!==null)
+			return $this->_alias;
+		else
+			return $this->_alias=new CModelAlias($this);
+	}
+
+	public function validateExecute()
+	{
+		return $this->validate();
+	}
+
+	/**
+	 * This event is raised before the record is saved.
+	 * @param CEvent the event parameter
+	 * @since 1.0.2
+	 */
+	public function onBeforeExecute($event)
+	{
+		$this->raiseEvent('onBeforeExecute',$event);
+	}
+
+	/**
+	 * This event is raised after the record is saved.
+	 * @param CEvent the event parameter
+	 * @since 1.0.2
+	 */
+	public function onAfterExecute($event)
+	{
+		$this->raiseEvent('onAfterExecute',$event);
+	}
+
+	/**
+	 * This method is invoked before saving a record (after validation, if any).
+	 * The default implementation raises the {@link onBeforeSave} event.
+	 * You may override this method to do any preparation work for record saving.
+	 * Use {@link isNewRecord} to determine whether the saving is
+	 * for inserting or updating record.
+	 * Make sure you call the parent implementation so that the event is raised properly.
+	 * @return boolean whether the saving should be executed. Defaults to true.
+	 */
+	protected function beforeExecute()
+	{
+		if($this->hasEventHandler('onBeforeExecute'))
+		{
+			$event=new CModelEvent($this);
+			$this->onBeforeExecute($event);
+			return $event->isValid;
+		}
+		else
+			return true;
+	}
+
+	/**
+	 * This method is invoked after saving a record.
+	 * The default implementation raises the {@link onAfterSave} event.
+	 * You may override this method to do postprocessing after record saving.
+	 * Make sure you call the parent implementation so that the event is raised properly.
+	 */
+	protected function afterExecute()
+	{
+		$this->getAlias()->reset();
+		if($this->hasEventHandler('onAfterExecute'))
+			$this->onAfterExecute(new CEvent($this));
+	}
+
+	/**
+	 * Saves the current record.
+	 *
+	 * This function is the real saving method, if assumes the data was already validated.
+	 *
+	 * @param array list of attributes that need to be saved. Defaults to null,
+	 * meaning all attributes that are loaded from DB will be saved.
+	 * @return boolean whether the saving succeeds
+	 */
+	protected function doExecute()
+	{
+/*
+		foreach ($this->getChildModels(false) as $attribute => $model)
+		{
+			if (!$model->save(false, (isset($attributes[$attribute])?$attributes[$attribute]:null)))
+				return false;
+		}
+ */
+		return true;
+	}
+
+	/**
+	 * Saves the current record.
+	 *
+	 * This function validates the attributes if requested, and forwards the saving to {@link doSave}.
+	 *
+	 * @param boolean whether to perform validation before saving the record.
+	 * If the validation fails, the record will not be saved to database.
+	 * @param array list of attributes that need to be saved. Defaults to null,
+	 * meaning all attributes that are loaded from DB will be saved.
+	 * @return boolean whether the saving succeeds
+	 */
+	public function execute($runValidation=true,$transaction=false)
+	{
+		if ($runValidation && !$this->validateExecute())
+			return false;
+        Yii::trace(get_class($this).'.beforeExecute', 'system.base.model');
+		$finalized = false;
+		$prepareData = $this->prepareExecute($transaction);
+		try
+		{
+			if ($this->beforeExecute())
+			{
+				Yii::trace(get_class($this).'.doExecute', 'system.base.model');
+				if (!$this->doExecute())
+				{
+					$finalized = true;
+					$this->finalizeExecute($transaction, false, $prepareData);
+					return false;
+				}
+				Yii::trace(get_class($this).'.afterExecute', 'system.base.model');
+				$this->afterExecute();
+				
+				$finalized = true;
+				$this->finalizeExecute($transaction, true, $prepareData);
+				return true;
+			}
+			$finalized = true;
+			$this->finalizeExecute($transaction, false, $prepareData);
+		}
+		catch (Exception $e)
+		{
+			if (!$finalized)
+				$this->finalizeExecute($transaction, false, $prepareData);
+			throw $e;
+		}
+		return false;
+	}
+
+	protected function prepareExecute($transaction)
+	{
+		
+	}
+
+	protected function finalizeExecute($transaction, $result, $prepareData)
+	{
+		
+	}
+	
+	public function convertToNewRecord()
+	{
+		
+	}	
+
+	public function executeConvertToNewRecord()
+	{
+		Yii::trace('executeConvertToNewRecord: '.get_class($this));
+		
+	}	
+	
+	/**
 	 * Performs the validation.
 	 *
 	 * This method executes the validation rules as declared in {@link rules}.
@@ -148,20 +365,30 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 * @see beforeValidate
 	 * @see afterValidate
 	 */
-	public function validate($attributes=null, $clearErrors=true)
+	public function validate($attributes=null) //, $clearErrors=true)
 	{
-		if($clearErrors)
+		//if($clearErrors)
 			$this->clearErrors();
 		if($this->beforeValidate())
 		{
 			foreach($this->getValidators() as $validator)
 				$validator->validate($this,$attributes);
+
+			$this->getAlias()->validate($attributes);
+
 			$this->afterValidate();
 			return !$this->hasErrors();
 		}
 		else
 			return false;
 	}
+
+    public function validateValidators($validators,$attributes=null)
+    {
+        foreach($validators as $validator)
+            $validator->validate($this,$attributes);
+        return !$this->hasErrors();
+    }
 
 	/**
 	 * This method is invoked after a model instance is created by new operator.
@@ -199,6 +426,11 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	protected function afterValidate()
 	{
 		$this->onAfterValidate(new CEvent($this));
+	}
+
+	protected function afterFind()
+	{
+
 	}
 
 	/**
@@ -248,6 +480,42 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	}
 
 	/**
+	 * Returns the parent model.
+	 * @return CModel the parent model
+	 * @since 1.2
+	 */
+	public function getParentModel()
+	{
+		return $this->_parentModel;
+	}
+
+	public function getParentAttribute()
+	{
+		return $this->_parentAttribute;
+	}
+
+	/**
+	 * Sets the parent model.
+	 * @since 1.2
+	 */
+	public function setParentModel($parent, $parentAttribute)
+	{
+		$this->_parentModel=$parent;
+		$this->_parentAttribute=$parentAttribute;
+	}
+
+	/**
+	 * Returns the root model.
+	 * @return CModel the root model
+	 * @since 1.2
+	 */
+	public function getRootModel()
+	{
+		if ($this->_parentModel===null) return $this;
+		return $this->_parentModel;
+	}
+
+	/**
 	 * Returns the validators applicable to the current {@link scenario}.
 	 * @param string $attribute the name of the attribute whose validators should be returned.
 	 * If this is null, the validators for ALL attributes in the model will be returned.
@@ -255,6 +523,10 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function getValidators($attribute=null)
 	{
+		if ($attribute !== null)
+			if (($model=$this->resolveAttribute($attribute)) !== $this)
+				return $model->getValidators($attribute);
+
 		if($this->_validators===null)
 			$this->_validators=$this->createValidators();
 
@@ -278,8 +550,13 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function createValidators()
 	{
+        return $this->createValidatorsForRules($this->rules());
+	}
+
+    public function createValidatorsForRules($rules)
+    {
 		$validators=new CList;
-		foreach($this->rules() as $rule)
+		foreach($rules as $rule)
 		{
 			if(isset($rule[0],$rule[1]))  // attributes, validator name
 				$validators->add(CValidator::createValidator($rule[1],$this,$rule[0],array_slice($rule,2)));
@@ -288,7 +565,68 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 					array('{class}'=>get_class($this))));
 		}
 		return $validators;
+    }
+
+	/**
+	 * Returns a value indicating whether the current model is active.
+	 * If it is not active (like it is marked deleted) it should not be displayed.
+	 * @return boolean whether the model is active
+	 */
+	public function isActive()
+	{
+		return true;
 	}
+
+    /**
+     * Checks if the model was posted, and assign the posted values.
+     * @param boolean whether to check also GET variables, instead of only POST.
+     * @return boolean whether the model was posted
+     */
+    public function checkPosted($allowGet = false)
+    {
+        if (isset($_POST[get_class($this)]))
+        {
+            $this->attributes = $_POST[get_class($this)];
+            return true;
+        }
+        elseif ($allowGet && isset($_REQUEST[$this->postPostedParamName()]))
+        {
+            $attributes = array();
+            foreach ($this->getPostAttributeNames() as $attribute)
+                if (isset($_REQUEST[$attribute]))
+                {
+                    $attributes[$attribute] = $_REQUEST[$attribute];
+                    if (strpos($attributes[$attribute], ',')!==false)
+                        $attributes[$attribute]=explode(',', $attributes[$attribute]);
+                }
+
+            $this->setAttributes($attributes, false);
+            return true;
+        }
+        return false;
+    }
+
+    public function postPostedParamName()
+    {
+        return get_class($this).'_posted';
+    }
+
+    /**
+     * Returns a list of fields to be posted by GET.
+     * @return array
+     */
+    public function postParams()
+    {
+        $ret=array($this->postPostedParamName()=>1);
+        foreach ($this->getPostAttributeNames() as $attribute)
+        {
+            if (is_scalar($this->$attribute) && $this->$attribute != '')
+                $ret[$attribute]=$this->$attribute;
+            elseif (is_array($this->$attribute))
+                $ret[$attribute]=implode(',', $this->$attribute);
+        }
+        return $ret;
+    }
 
 	/**
 	 * Returns a value indicating whether the attribute is required.
@@ -299,7 +637,8 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function isAttributeRequired($attribute)
 	{
-		foreach($this->getValidators($attribute) as $validator)
+		$model=$this->resolveAttribute($attribute);
+		foreach($model->getValidators($attribute) as $validator)
 		{
 			if($validator instanceof CRequiredValidator)
 				return true;
@@ -328,11 +667,34 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function getAttributeLabel($attribute)
 	{
-		$labels=$this->attributeLabels();
+		$model=$this->resolveAttribute($attribute);
+		$labels=$model->attributeLabels();
 		if(isset($labels[$attribute]))
 			return $labels[$attribute];
 		else
-			return $this->generateAttributeLabel($attribute);
+			return $model->generateAttributeLabel($attribute);
+	}
+
+	/**
+	 * Returns the value for the specified attribute.
+	 * @param string the attribute name
+	 * @return string the attribute value
+	 */
+	public function getAttributeValue($attribute)
+	{
+		$model=$this->resolveAttribute($attribute);
+		return $model->$attribute;
+	}
+
+	/**
+	 * Sets the value for the specified attribute.
+	 * @param string the attribute name
+	 * @param mixed the attribute value
+	 */
+	public function setAttributeValue($attribute, $value)
+	{
+		$model=$this->resolveAttribute($attribute);
+		$model->$attribute = $value;
 	}
 
 	/**
@@ -379,6 +741,9 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	public function addError($attribute,$error)
 	{
 		$this->_errors[$attribute][]=$error;
+
+		if ($this->_parentModel !== null && $this->_parentAttribute !== null)
+			$this->_parentModel->addError($this->_parentAttribute.'.'.$attribute,$error);
 	}
 
 	/**
@@ -398,7 +763,9 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 					$this->addError($attribute, $e);
 			}
 			else
+			{
 				$this->addError($attribute, $error);
+			}
 		}
 	}
 
@@ -467,7 +834,12 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 		foreach($values as $name=>$value)
 		{
 			if(isset($attributes[$name]))
-				$this->$name=$value;
+            {
+                if (is_object($this->$name) && $this->$name instanceof CModel)
+                    $this->$name->attributes=$value;
+                else
+                    $this->$name=$value;
+            }
 			else if($safeOnly)
 				$this->onUnsafeAttribute($name,$value);
 		}
@@ -519,6 +891,8 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function getScenario()
 	{
+		if ($this->_parentModel!==null)
+			return $this->_parentModel->getScenario();
 		return $this->_scenario;
 	}
 
@@ -529,7 +903,99 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	 */
 	public function setScenario($value)
 	{
+		if (!is_array($value)) $value=explode(',', $value);
 		$this->_scenario=$value;
+	}
+
+	/**
+	 * @param string the scenario to add this model in.
+	 * @see setScenario
+	 * @since 1.2-dev
+	 */
+	public function addScenario($value)
+	{
+		if (is_array($value))
+		{
+			foreach ($value as $v)
+				$this->addScenario($v);
+			return;
+		}
+	
+		if (in_array($value, $this->_scenario)) return;
+		$this->_scenario[]=$value;
+	}
+
+	/**
+	 * @param string the scenario to remove this model from.
+	 * @see setScenario
+	 * @since 1.2-dev
+	 */
+	public function removeScenario($value)
+	{
+		if (($pos=array_search($value, $this->_scenario))===FALSE) return;
+		array_splice($this->_scenario, $pos, 1);
+	}
+
+	/**
+	 * Checks if the model has the scenario(s)
+	 * @param mixed the scenario(s) to check
+	 */
+	public function hasScenario($value)
+	{
+		if (!is_array($value)) $value=array($value);
+
+        $scenario = $this->getScenario();
+
+		foreach ($value as $item)
+			if (array_search($item, $scenario)!==FALSE)
+				return true;
+		return false;
+	}
+
+	/**
+	 * Resolves the attribute name.
+	 * The attribute name can be given in a dot syntax. For example, if the attribute
+	 * is "author.firstName", this method will return the "author" model and attribute will be set to "firstName".
+	 * @return {$link CModel} target model
+	 * @since 1.2a
+	 */
+	public function resolveAttribute(&$attribute)
+	{
+		$model=$this;
+
+		$alist=explode('.',$attribute);
+		for ($i=0; $i<count($alist)-1; $i++)
+		{
+			//if(is_object($model->{$alist[$i]}))
+			if ($model->{$alist[$i]}===null)
+			{
+				// should return null?
+				$attribute=$alist[$i];
+				return $model;
+			}
+			elseif($model->{$alist[$i]} instanceof CModel)
+				$model=$model->{$alist[$i]};
+			else if(is_array($model->{$alist[$i]}) || $model->{$alist[$i]} instanceof ArrayAccess)
+				$model=$model[$alist[$i]];
+			else
+				throw new CException(Yii::t('yii','{class} could not resolve the requested attribute "{item}" on "{attribute} {x}".',
+					array('{class}'=>get_class($this), '{attribute}'=>$attribute, '{item}'=>$alist[$i], '{x}'=>print_r($model->{$alist[$i]}, true))));
+		}
+		$attribute=$alist[count($alist)-1];
+		return $model;
+	}
+
+	/**
+	 * Resolves the attribute value.
+	 * The attribute name can be given in a dot syntax. For example, if the attribute
+	 * is "author.firstName", this method will return the "firstName" attribute value of "author".
+	 * @return string attribute value
+	 * @since 1.2a
+	 */
+	public function resolveAttributeValue($attribute)
+	{
+		$model=$this->resolveAttribute($attribute);
+		return $model->$attribute;
 	}
 
 	/**
@@ -559,6 +1025,65 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 			unset($attributes[$name]);
 		return array_keys($attributes);
 	}
+
+    /**
+     * Return the attribute names that are safe to be posted by GET.
+     * By default return 'getSafeAttributeNames'.
+     * @return array post attribute names
+     */
+    public function getPostAttributeNames()
+    {
+        return $this->getSafeAttributeNames();
+    }
+
+    /**
+     * Assigns the passed model's values to this model.
+     * @param CModel $model
+     */
+	public function assignModel($model)
+	{
+		foreach ($model as $key => $mvalue) {
+			if ($this->offsetExists($key))
+				$this->$key=$model->$key;
+		}
+	}
+
+	/**
+	 * Returns the attribute aliases.
+	 *
+	 * This method should be overridden to attribute aliases.
+	 * Each rule is an array with the following structure:
+	 * <pre>
+	 * array('alias', 'attribute name', ...alias parameters...)
+	 * </pre>
+	 * where
+	 * <ul>
+	 * <li>alias: the attribute alias name;</li>
+	 * <li>attribute name: specifies the atribute to be used when the alias is requested;</li>
+	 * <li>additional parameters, such as 'format'.</li>
+	 * </ul>
+	 *
+	 * The following are some examples:
+	 * <pre>
+	 * array(
+	 *     array('dob', 'dateofbirth', 'format'=>'date'),
+	 *     array('login', 'username'),
+	 * );
+	 * </pre>
+	 *
+	 * A 'format' parameter will call Yii::app()-format->format($value, $format) on get and
+	 * Yii::app()-format->parse($value, $format) on set.
+
+	 * Note, in order to inherit aliases defined in the parent class, a child class needs to
+	 * merge the parent aliases with child aliases using functions like array_merge().
+	 *
+	 * @return array alias list.
+	 * @see scenario
+	 */
+	public function aliases()
+	{
+		return array();
+	}	
 
 	/**
 	 * Returns an iterator for traversing the attributes in the model.
@@ -612,5 +1137,108 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
 	public function offsetUnset($offset)
 	{
 		unset($this->$offset);
+	}
+}
+
+
+class CModelAlias
+{
+	public $aliases=array();
+
+	private $_model;
+
+	public function __construct($model)
+	{
+		$this->_model=$model;
+
+		$this->init();
+	}
+
+	protected function init()
+	{
+		$this->aliases = array();
+		// create aliases
+		foreach ($this->_model->aliases() as $alias)
+		{
+			if(isset($alias[0],$alias[1]))  // alias, attribute
+				$this->aliases[$alias[0]]=array($alias[0],$alias[1],array_slice($alias,2),array('value'=>null, 'error'=>null));
+			else
+				throw new CDbException(Yii::t('yii','Active record "{class}" has an invalid configuration for alias "{alias}". It must specify the alias and the attribute.',
+					array('{class}'=>get_class($this->_model),'{alias}'=>$alias[0])));
+		}
+	}
+
+	/**
+	 * Returns the alias related attribute value.
+	 * @param string alias name
+	 * @param mixed related attribute value
+	 */
+	public function getValue($name)
+	{
+		if(!isset($this->aliases[$name]))
+			throw new CDbException(Yii::t('yii','{class} does not have alias "{name}".',
+				array('{class}'=>get_class($this->_model), '{name}'=>$name)));
+
+		if ($this->aliases[$name][3]['value'] !== null)
+			return $this->aliases[$name][3]['value'];
+		elseif ($this->_model->{$this->aliases[$name][1]}!==null && $this->_model->{$this->aliases[$name][1]}!='' && isset($this->aliases[$name][2]['format']))
+			return Yii::app()->format->format($this->_model->{$this->aliases[$name][1]}, $this->aliases[$name][2]['format']);
+		else
+			return $this->_model->{$this->aliases[$name][1]};
+	}
+
+	/**
+	 * Sets the alias related attribute value.
+	 * @param string alias name
+	 * @param string value to set the related attribute
+	 */
+	public function setValue($name,$value)
+	{
+		if(!isset($this->aliases[$name]))
+			throw new CDbException(Yii::t('yii','{class} does not have alias "{name}".',
+				array('{class}'=>get_class($this->_model), '{name}'=>$name)));
+
+		if ($value!==null && $value!='' && isset($this->aliases[$name][2]['format']))
+		{
+			$formatValue=Yii::app()->format->parse($value, $this->aliases[$name][2]['format']);
+			if ($formatValue !== false)
+			{
+				$this->_model->{$this->aliases[$name][1]} = $formatValue;
+				$this->aliases[$name][3]['value'] = null;
+				$this->aliases[$name][3]['error'] = null;
+			}
+			else
+			{
+				$this->aliases[$name][3]['value'] = $value;
+				$this->aliases[$name][3]['error'] = Yii::t('yii', '{attribute} is invalid.',
+					array('{attribute}'=>$this->_model->getAttributeLabel($name)));
+			}
+		}
+		else
+			$this->_model->{$this->aliases[$name][1]}=$value;
+	}
+
+	public function reset()
+	{
+		foreach ($this->aliases as $aname => $avalue)
+			$this->aliases[$aname][3]['value'] = $this->aliases[$aname][3]['error'] = null;
+	}
+
+	public function attributeNames()
+	{
+		$ret=array();
+		foreach ($this->aliases as $aname => $avalue)
+			$ret[$aname]=$avalue[1];
+		return $ret;
+	}
+
+	public function validate($attributes = null)
+	{
+		if ($attributes === null)
+			$attributes = array_keys($this->aliases);
+
+		foreach ($attributes as $attribute)
+			if (isset($this->aliases[$attribute]) && $this->aliases[$attribute][3]['error'] !== null)
+				$this->_model->addError($attribute, $this->aliases[$attribute][3]['error']);
 	}
 }

@@ -34,6 +34,17 @@ class CJavaScript
 			return strtr($js,array("\t"=>'\t',"\n"=>'\n',"\r"=>'\r','"'=>'\"','\''=>'\\\'','\\'=>'\\\\','</'=>'<\/'));
 	}
 
+    /**
+     * Quotes a string for inclusion in a tag attribute
+     * @param string string to be quoted
+     * @param boolean whether the string is used as a URL
+     * @return string the quoted string
+     */
+    public static function quoteAttribute($value,$forUrl=false)
+    {
+        return utf8_encode(htmlentities(utf8_decode($value), ENT_QUOTES));
+    }
+
 	/**
 	 * Encodes a PHP variable into javascript representation.
 	 *
@@ -57,6 +68,8 @@ class CJavaScript
 		{
 			if(strpos($value,'js:')===0)
 				return substr($value,3);
+			elseif(strpos($value,'url:')===0)
+				return "'".self::quote(Yii::app()->baseUrl.substr($value,4))."'";
 			else
 				return "'".self::quote($value)."'";
 		}

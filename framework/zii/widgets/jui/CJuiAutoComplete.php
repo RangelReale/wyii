@@ -64,6 +64,8 @@ class CJuiAutoComplete extends CJuiInputWidget
 	 */
 	public $sourceUrl;
 
+	public $renderItem;
+	
 	/**
 	 * Run this widget.
 	 * This method registers necessary javascript and renders the needed HTML code.
@@ -92,7 +94,13 @@ class CJuiAutoComplete extends CJuiInputWidget
 
 		$options=CJavaScript::encode($this->options);
 
-		$js = "jQuery('#{$id}').autocomplete($options);";
+		$js = "jQuery('#{$id}').autocomplete($options)";
+		
+		if (isset($this->renderItem))
+		{
+			$js.='.data( "autocomplete" )._renderItem = '.$this->renderItem;
+		}
+		$js.=';';
 
 		$cs = Yii::app()->getClientScript();
 		$cs->registerScript(__CLASS__.'#'.$id, $js);

@@ -199,6 +199,8 @@ abstract class CBaseListView extends CWidget
 		echo '<div class="'.$this->summaryCssClass.'">';
 		if($this->enablePagination)
 		{
+			if(($summaryText=$this->summaryText)===null)
+				$summaryText=Yii::t('zii','Displaying {start}-{end} of {count} result(s).');
 			$pagination=$this->dataProvider->getPagination();
 			$total=$this->dataProvider->getTotalItemCount();
 			$start=$pagination->currentPage*$pagination->pageSize+1;
