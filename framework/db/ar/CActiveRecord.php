@@ -1071,13 +1071,13 @@ abstract class CActiveRecord extends CModel
 	{
 		parent::executeConvertToNewRecord();
 		
-		$this->convertToNewRecord();
-	
-		// execute the dependente relations
-		foreach ($this->getChildRelations(true, false, true) as $attribute => $model)
+		// execute the dependent relations
+		foreach ($this->getChildRelations(true, true, true) as $attribute => $model)
 		{
 			$model->executeConvertToNewRecord();
 		}
+		
+		$this->convertToNewRecord();
 	}
 	
 	

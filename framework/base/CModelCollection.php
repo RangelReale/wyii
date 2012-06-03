@@ -142,46 +142,6 @@ class CModelCollection extends CModel implements Countable
 	}
 
 	/**
-	 * Returns the child models.
-	 * @return array child models
-	 */
-/*
-	public function getChildModels($lazyLoad=true)
-	{
-		$ret=array();
-		foreach ($this->models as $attribute => $model)
-			if ($this->isAttributeSafe($attribute))
-				$ret[$attribute]=$model;
-		return $ret;
-	}
-*/
-
-/*
-	public function afterFind()
-	{
-		
-	}
- */
-
-	/**
-	 * Resolves the attribute name.
-	 * If the attribute is null, return the relation name
-	 * @return {$link CModel} target model
-	 * @since 1.2a
-	 */
-/*
-	public function resolveAttribute(&$attribute)
-	{
-		if ($attribute===null)
-		{
-			$attribute=$this->_relation;
-			return $this->parentModel;
-		}
-		return parent::resolveAttribute($attribute);
-	}
-*/
-
-	/**
 	 * Returns an iterator for traversing the attributes in the model collection.
 	 * This method is required by the interface IteratorAggregate.
 	 * @return CMapIterator an iterator for traversing the items in the list.
@@ -280,6 +240,19 @@ class CModelCollection extends CModel implements Countable
     {
         throw new CException('Cannot set models id list');
     }
+	
+	public function executeConvertToNewRecord()
+	{
+		parent::executeConvertToNewRecord();
+		
+		// execute the dependent relations
+		foreach ($this as $model)
+		{
+			$model->executeConvertToNewRecord();
+		}
+		
+		$this->convertToNewRecord();
+	}
 }
 
 ?>
