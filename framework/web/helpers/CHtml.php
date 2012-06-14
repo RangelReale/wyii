@@ -878,6 +878,8 @@ class CHtml
 	 * the checkbox list.</li>
 	 * <li>labelOptions: array, specifies the additional HTML attributes to be rendered
 	 * for every label tag in the list.</li>
+	 * <li>container: string, specifies the checkboxes enclosing tag. Defaults to 'span'.
+	 * If the value is an empty string, no enclosing tag will be generated</li>
 	 * </ul>
 	 * @return string the generated check box list
 	 */
@@ -885,7 +887,8 @@ class CHtml
 	{
 		$template=isset($htmlOptions['template'])?$htmlOptions['template']:'{input} {label}';
 		$separator=isset($htmlOptions['separator'])?$htmlOptions['separator']:"<br/>\n";
-		unset($htmlOptions['template'],$htmlOptions['separator']);
+		$container=isset($htmlOptions['container'])?$htmlOptions['container']:'span';
+		unset($htmlOptions['template'],$htmlOptions['separator'],$htmlOptions['container']);
 
 		if(substr($name,-2)!=='[]')
 			$name.='[]';
@@ -942,7 +945,10 @@ EOD;
 			$cs->registerScript($id,$js);
 		}
 
-		return self::tag('span',array('id'=>$baseID),implode($separator,$items));
+		if(empty($container))
+			return implode($separator,$items);
+		else
+			return self::tag($container,array('id'=>$baseID),implode($separator,$items));
 	}
 
 	/**
@@ -963,6 +969,8 @@ EOD;
 	 * <li>separator: string, specifies the string that separates the generated radio buttons. Defaults to new line (<br/>).</li>
 	 * <li>labelOptions: array, specifies the additional HTML attributes to be rendered
 	 * for every label tag in the list.</li>
+	 * <li>container: string, specifies the radio buttons enclosing tag. Defaults to 'span'.
+	 * If the value is an empty string, no enclosing tag will be generated</li>
 	 * </ul>
 	 * @return string the generated radio button list
 	 */
@@ -970,8 +978,9 @@ EOD;
 	{
 		$template=isset($htmlOptions['template'])?$htmlOptions['template']:'{input} {label}';
 		$separator=isset($htmlOptions['separator'])?$htmlOptions['separator']:"<br/>\n";
-        $useLabel=isset($htmlOptions['uselabel'])?$htmlOptions['uselabel']:true;
-		unset($htmlOptions['template'],$htmlOptions['separator']);
+		$container=isset($htmlOptions['container'])?$htmlOptions['container']:'span';
+		$useLabel=isset($htmlOptions['uselabel'])?$htmlOptions['uselabel']:true;
+		unset($htmlOptions['template'],$htmlOptions['separator'],$htmlOptions['container']);
 
 		$labelOptions=isset($htmlOptions['labelOptions'])?$htmlOptions['labelOptions']:array();
 		unset($htmlOptions['labelOptions']);
@@ -989,7 +998,10 @@ EOD;
                 $label=self::label($label,$htmlOptions['id'],$labelOptions);
 			$items[]=strtr($template,array('{input}'=>$option,'{label}'=>$label));
 		}
-		return self::tag('span',array('id'=>$baseID),implode($separator,$items));
+		if(empty($container))
+			return implode($separator,$items);
+		else
+			return self::tag($container,array('id'=>$baseID),implode($separator,$items));
 	}
 
 	/**
