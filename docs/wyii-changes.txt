@@ -23,7 +23,7 @@ advanced database programming. Also allows for array access via property name, l
 CModelCollection is automatically saved when parent model is saved (if relation is declared safe).
 - CFileHelper::getExtension returns the file extension
 - CActiveDataProvider::scope uses a scope when querying the object
-
+- CActiveRecord::execute method to save this and nested relations together (only when relations are declared as "safe")
 
 Possible compatibility problems
 -------------------------------
