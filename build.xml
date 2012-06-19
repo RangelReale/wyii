@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="wyii" default="main" basedir=".">  
+  
+    <property name="package"  value="${phing.project.name}" override="true" />
+    <property name="builddir" value="../build/${phing.project.name}" override="true" />
+    <property name="srcdir"   value="${project.basedir}" override="true" />
+	
+    <!-- define a fileset for PHP Web sources -->  
+    <fileset dir="${srcdir}/framework" id="php.sources">  
+        <include name="**"/>  
+
+        <exclude name="yiilite.php"/>  
+        <exclude name="yiit.php"/>  
+        <exclude name="**/.svn/**"/>  
+        <exclude name="**/.git/**"/>  
+        <exclude name="**/*.bat"/>  
+        <exclude name="**/*.zip"/>  
+        
+        <exclude name="**/tests/**"/>  
+        <exclude name="**/test/**"/>  
+        <exclude name="**/gii/**"/>  
+    </fileset>  
+  
+    <!-- ============================================  -->
+    <!-- (DEFAULT) Target: main                        -->
+    <!-- ============================================  -->
+    <target name="main" description="main target">
+        <copy todir="${builddir}" includeemptydirs="false">
+            <fileset refid="php.sources" />
+        </copy>
+    </target>
+
+    <!-- ============================================  -->
+    <!-- Target: Deploy                                -->
+    <!-- ============================================  -->
+    <target name="deploy" description="deploy target">
+        <delete dir="${builddir}" />
+        <phingcall target="main" />
+    </target>
+	
+    <!-- ============================================  -->
+    <!-- Target: Rebuild                               -->
+    <!-- ============================================  -->
+    <target name="rebuild" description="rebuilds this package">
+        <delete dir="${builddir}" />
+        <phingcall target="main" />
+    </target>
+	
+</project> 
