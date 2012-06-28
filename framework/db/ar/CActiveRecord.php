@@ -1715,20 +1715,25 @@ abstract class CActiveRecord extends CModel
         if ($criteria->order)
             $command->order($criteria->order);
 
-        foreach ($criteria->with as $wvalue)
+        if (is_array($criteria->with))
         {
-            $relation = clone $this->getActiveRelation($wvalue);
-            $relationmodel=CActiveRecord::model($relation->className);
+            $wvalues = array_unique($criteria->with);
+            
+            foreach ($wvalues as $wvalue)
+            {
+                $relation = clone $this->getActiveRelation($wvalue);
+                $relationmodel=CActiveRecord::model($relation->className);
 
-            $relcriteria = new CDbCriteria;
-            $relation->mergeWith($relcriteria);
-            $relation->mergeWith(array(
-                'condition'=>'t.'.$relation->foreignKey.' = '.$wvalue.'.'.$relationmodel->tableSchema->primaryKey,
-            ));
-            
-            $command->leftJoin($relationmodel->tableName().' '.$wvalue, $relation->condition, $relation->params);
-            
-            $aliases[$wvalue]=$wvalue;
+                $relcriteria = new CDbCriteria;
+                $relation->mergeWith($relcriteria);
+                $relation->mergeWith(array(
+                    'condition'=>'t.'.$relation->foreignKey.' = '.$wvalue.'.'.$relationmodel->tableSchema->primaryKey,
+                ));
+
+                $command->leftJoin($relationmodel->tableName().' '.$wvalue, $relation->condition, $relation->params);
+
+                $aliases[$wvalue]=$wvalue;
+            }
         }
         
         foreach ($aliases as $aname => $avalue)
