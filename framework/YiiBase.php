@@ -692,6 +692,7 @@ class YiiBase
 		'CHttpException' => '/base/CHttpException.php',
 		'CModel' => '/base/CModel.php',
 		'CModelCollection' => '/base/CModelCollection.php',
+		'CModelArray' => '/base/CModelArray.php',
 		'CModelView' => '/base/CModelView.php',
 		'CRelationModelCollection' => '/base/CRelationModelCollection.php',
 		'CModelBehavior' => '/base/CModelBehavior.php',
