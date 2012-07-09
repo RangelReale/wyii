@@ -246,9 +246,11 @@ abstract class CValidator extends CComponent
 	 */
 	public function applyTo($scenario)
 	{
-		if(isset($this->off[$scenario]))
-			return false;
-
+		if (!empty($this->off))
+            foreach ($this->off as $off)
+                if (in_array($off, $scenario))
+                    return false;
+        
 		if (empty($this->on)) return true;
 		
 		foreach ($this->on as $on)
