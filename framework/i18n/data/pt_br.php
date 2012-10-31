@@ -29,6 +29,7 @@ return array (
   'scientificFormat' => '#E0',
   'percentFormat' => '#,##0%',
   'currencyFormat' => '¤#,##0.00;(¤#,##0.00)',
+  'statisticalFormat' => '#,##0.#######',
   'currencySymbols' => 
   array (
     'AUD' => 'AU$',
