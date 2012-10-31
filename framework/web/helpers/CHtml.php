@@ -142,18 +142,18 @@ class CHtml
     public static function decodeSmartQuotes($string)
     {
         static $quotes = array(
-            "\xC2\xAB"     => '"', // « (U+00AB) in UTF-8
-            "\xC2\xBB"     => '"', // » (U+00BB) in UTF-8
-            "\xE2\x80\x98" => "'", // ‘ (U+2018) in UTF-8
-            "\xE2\x80\x99" => "'", // ’ (U+2019) in UTF-8
-            "\xE2\x80\x9A" => "'", // ‚ (U+201A) in UTF-8
+            "\xC2\xAB"     => '"', // ï¿½ (U+00AB) in UTF-8
+            "\xC2\xBB"     => '"', // ï¿½ (U+00BB) in UTF-8
+            "\xE2\x80\x98" => "'", // ï¿½ (U+2018) in UTF-8
+            "\xE2\x80\x99" => "'", // ï¿½ (U+2019) in UTF-8
+            "\xE2\x80\x9A" => "'", // ï¿½ (U+201A) in UTF-8
             "\xE2\x80\x9B" => "'", // ? (U+201B) in UTF-8
-            "\xE2\x80\x9C" => '"', // “ (U+201C) in UTF-8
-            "\xE2\x80\x9D" => '"', // ” (U+201D) in UTF-8
-            "\xE2\x80\x9E" => '"', // „ (U+201E) in UTF-8
+            "\xE2\x80\x9C" => '"', // ï¿½ (U+201C) in UTF-8
+            "\xE2\x80\x9D" => '"', // ï¿½ (U+201D) in UTF-8
+            "\xE2\x80\x9E" => '"', // ï¿½ (U+201E) in UTF-8
             "\xE2\x80\x9F" => '"', // ? (U+201F) in UTF-8
-            "\xE2\x80\xB9" => "'", // ‹ (U+2039) in UTF-8
-            "\xE2\x80\xBA" => "'", // › (U+203A) in UTF-8
+            "\xE2\x80\xB9" => "'", // ï¿½ (U+2039) in UTF-8
+            "\xE2\x80\xBA" => "'", // ï¿½ (U+203A) in UTF-8
         );
         return strtr($string, $quotes);
     }
@@ -1843,8 +1843,11 @@ EOD;
 		$valueExpression=isset($options['valueExpression']) && $options['valueExpression'];
 		$textExpression=isset($options['textExpression']) && $options['textExpression'];
 		$groupExpression=isset($options['groupExpression']) && $options['groupExpression'];
-	
 		$listData=array();
+        if (isset($options['extraData']))
+            foreach($options['extraData'] as $extraid => $extravalue)
+                $listData[$extraid] = $extravalue;
+        
 		if($groupField==='')
 		{
 			foreach($models as $model)
