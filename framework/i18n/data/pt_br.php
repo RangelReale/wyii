@@ -30,7 +30,7 @@ return array (
   'percentFormat' => '#,##0%',
   'currencyFormat' => '¤#,##0.00;(¤#,##0.00)',
   'statisticalFormat' => '#,##0.#######',
-  'monetaryFormat' => '#.###0',
+  'monetaryFormat' => '#,##0.0000',
   'currencySymbols' => 
   array (
     'AUD' => 'AU$',
