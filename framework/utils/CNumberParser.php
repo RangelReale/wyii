@@ -143,6 +143,16 @@ class CNumberParser extends CComponent
 	}
 
 	/**
+	 * Parses a number using the decimal format defined in the locale.
+	 * @param mixed the number to be parsed
+	 * @return string the parsing result.
+	 */
+	public function parseMonetary($value)
+	{
+		return $this->parse($this->_locale->getMonetaryFormat(),$value);
+	}
+    
+	/**
 	 * Parses a number based on a format.
 	 * This is the method that does actual number parsing.
 	 * @param array format with the following structure:

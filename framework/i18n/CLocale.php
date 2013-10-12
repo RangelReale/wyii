@@ -205,6 +205,16 @@ class CLocale extends CComponent
 	}
 
 	/**
+	 * @return string the statistical format
+	 */
+	public function getMonetaryFormat()
+	{
+		if (isset($this->_data['monetaryFormat']))
+			return $this->_data['monetaryFormat'];
+		return $this->_data['decimalFormat'];
+	}
+    
+	/**
 	 * @param integer $month month (1-12)
 	 * @param string $width month name width. It can be 'wide', 'abbreviated' or 'narrow'.
 	 * @param boolean $standAlone whether the month name should be returned in stand-alone format

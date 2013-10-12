@@ -324,6 +324,17 @@ class CFormatter extends CApplicationComponent
 	}
 
 	/**
+	 * Formats the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 * @see numberFormat
+	 */
+	public function formatMonetary($value)
+	{
+		return $this->formatNumber($value);
+	}
+    
+	/**
 	 * Formats the value as a byte value.
 	 * @param mixed the value to be formatted
      * @param string the minimum byte measure to return
@@ -588,6 +599,17 @@ class CFormatter extends CApplicationComponent
 		return $this->parseNumber($value);
 	}
 
+	/**
+	 * Parses the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parseMonetary($value)
+	{
+		return $this->parseNumber($value);
+	}
+    
 	/**
 	 * Parses the value as a time period.
 	 * @param mixed the value to be parsed
