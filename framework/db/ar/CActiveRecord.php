@@ -542,7 +542,7 @@ abstract class CActiveRecord extends CModel
 	 * and 'foreign_key' states the foreign key that relates the two kinds of active record.
 	 * Note, for composite foreign keys, they can be either listed together, separated by commas or specified as an array
 	 * in format of array('key1','key2'). In case you need to specify custom PK->FK association you can define it as
-	 * array('fk'=>'pk'). For composite keys it will be array('fk_c1'=>'pk_с1','fk_c2'=>'pk_c2').
+	 * array('fk'=>'pk'). For composite keys it will be array('fk_c1'=>'pk_?1','fk_c2'=>'pk_c2').
 	 * For foreign keys used in MANY_MANY relation, the joining table must be declared as well
 	 * (e.g. 'join_table(fk1, fk2)').
 	 *
@@ -2725,6 +2725,11 @@ class CManyManyModelCollection extends CModelCollection
 	{
 		if ($this->changedValues!==null)
 			return $this->changedValues;
+		return parent::getModels();
+	}
+    
+	protected function getOriginalModels()
+	{
 		return parent::getModels();
 	}
 }
