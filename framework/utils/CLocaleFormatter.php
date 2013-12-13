@@ -105,7 +105,18 @@ class CLocaleFormatter extends CFormatter
 	{
 		return Yii::app()->locale->numberFormatter->formatStatistical($value, '');
 	}
-	
+
+	/**
+	 * Formats the value as a percentage using  the locale.
+	 * @param mixed the value to be formatted
+	 * @return string the formatted result
+	 * @see numberFormat
+	 */
+	public function formatMonetary($value)
+	{
+		return Yii::app()->locale->numberFormatter->formatMonetary($value, '');
+	}
+    
 	/**
 	 * Parses the value as a date.
 	 * @param mixed the value to be parsed
@@ -197,6 +208,17 @@ class CLocaleFormatter extends CFormatter
 		return $nparse->parseStatistical($value);
 	}
 	
+	/**
+	 * Parses the value as a percentage using PHP number_format() function.
+	 * @param mixed the value to be parsed
+	 * @return string the parsed result
+	 * @see numberFormat
+	 */
+	public function parseMonetary($value)
+	{
+		$nparse=new CNumberParser(Yii::app()->locale);
+		return $nparse->parseMonetary($value);
+	}
 }
 
 ?>
