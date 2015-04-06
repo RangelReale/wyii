@@ -1390,7 +1390,7 @@ class CJoinQuery
 		{
 			$this->selects[]=$joinElement->getColumnSelect($joinElement->translateFieldAliases($criteria->select));
 			$this->joins[]=$joinElement->getTableNameWithAlias();
-			$this->joins[]=$criteria->join;
+			$this->joins[]=$joinElement->translateFieldAliases($criteria->join);
 			$this->conditions[]=$joinElement->translateFieldAliases($criteria->condition);
 			$this->orders[]=$joinElement->translateFieldAliases($criteria->order);
 			$this->groups[]=$joinElement->translateFieldAliases($criteria->group);
