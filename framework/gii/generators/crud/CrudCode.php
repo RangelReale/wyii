@@ -197,12 +197,12 @@ class CrudCode extends CCodeModel
 		}
 	}
 
-	public function generateActiveLabel($modelClass,$column)
+	public function generateActiveLabel($modelClass,$column,$htmlOptions=null)
 	{
-		return "\$form->labelEx(\$model,'{$column->name}')";
+		return "\$form->labelEx(\$model,'{$column->name}'".$this->outputHtmlOptions($htmlOptions, ", ").")";
 	}
 
-	public function generateActiveField($modelClass,$column)
+	public function generateActiveField($modelClass,$column,$htmlOptions=null)
 	{
 		if($column->type==='boolean')
 			return "\$form->checkBox(\$model,'{$column->name}')";
@@ -215,13 +215,17 @@ class CrudCode extends CCodeModel
 			else
 				$inputField='textField';
 
+            if (!isset($htmlOptions)) $htmlOptions=array();
+            
 			if($column->type!=='string' || $column->size===null)
-				return "\$form->{$inputField}(\$model,'{$column->name}')";
+				return "\$form->{$inputField}(\$model,'{$column->name}'".$this->outputHtmlOptions($htmlOptions, ", ").")";
 			else
 			{
 				if(($size=$maxLength=$column->size)>60)
 					$size=60;
-				return "\$form->{$inputField}(\$model,'{$column->name}',array('size'=>$size,'maxlength'=>$maxLength))";
+                $htmlOptions['size']=$size;
+                $htmlOptions['maxlength']=$maxLength;
+				return "\$form->{$inputField}(\$model,'{$column->name}'".$this->outputHtmlOptions($htmlOptions, ", ").")";
 			}
 		}
 	}
@@ -245,4 +249,25 @@ class CrudCode extends CCodeModel
 		}
 		return 'id';
 	}
+    
+    private function outputHtmlOptions($htmlOptions, $prepend = null)
+    {
+        $hp = '';
+        if (is_array($htmlOptions) && count($htmlOptions))
+        {
+            $hp = 'array(';
+            $isfirst = true;
+            foreach ($htmlOptions as $name=>$value){
+                if (!$isfirst)
+                    $hp .= ', ';
+                $hp .= "'{$name}'=>'{$value}'";
+                $isfirst = false;
+            }
+            $hp .= ')';
+            
+            if (isset($prepend))
+                $hp=$prepend.$hp;
+        }
+        return $hp;
+    }
 }
