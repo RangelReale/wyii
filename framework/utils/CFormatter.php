@@ -387,7 +387,8 @@ class CFormatter extends CApplicationComponent
         $seconds = intval($value % 60);
 
         $dt = mktime($hours, $minutes, $seconds, null, null, null);
-        return $this->formatTime($dt);
+        return date('H:i:s',$dt);
+        //return $this->formatTime($dt);
 
         // add seconds to $hms (with a leading 0 if needed)
         $hms .= str_pad($value, 2, "0", STR_PAD_LEFT);
@@ -617,7 +618,12 @@ class CFormatter extends CApplicationComponent
 	 */
 	public function parseTimeperiod($value)
 	{
-		$time = $this->parseTime($value);
+        $time = null;
+		if ($value!==null && $value!='')
+			//$time = strptime($value, 'H:i:s');
+            $time = CDateTimeParser::parse($value, 'HH:mm:ss');
+//
+		//$time = $this->parseTime($value);
         return $this->calcTimePeriod($time);
 	}
 
