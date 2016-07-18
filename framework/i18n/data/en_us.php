@@ -162,14 +162,16 @@ return array (
   array (
     'full' => 'EEEE, MMMM d, y',
     'long' => 'MMMM d, y',
-    'medium' => 'MMM d, y',
+    //'medium' => 'MMM d, y',
+    'medium' => 'MM/dd/yy',
     'short' => 'M/d/yy',
   ),
   'timeFormats' => 
   array (
     'full' => 'h:mm:ss a zzzz',
     'long' => 'h:mm:ss a z',
-    'medium' => 'h:mm:ss a',
+    //'medium' => 'h:mm:ss a',
+    'medium' => 'hh:mm:ss a',
     'short' => 'h:mm a',
   ),
   'dateTimeFormat' => '{1} {0}',
