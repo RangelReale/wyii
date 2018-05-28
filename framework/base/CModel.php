@@ -41,9 +41,7 @@ abstract class CModel extends CComponent implements IteratorAggregate, ArrayAcce
     {
         $this->_parentModel = null;
         $this->_parentAttribute = null;
-        
-        unset($this);
-    } 
+    }
     
 	/**
 	 * Checks if a property value is null.
